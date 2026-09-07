@@ -50,8 +50,10 @@ const ALLOWED = [
  * we want a calm wide landscape, not a subject study.
  */
 const SCENES = [
-  { id: "none", queries: ["starry night sky landscape silhouette", "night sky stars mountains"] },
-  { id: "rain", queries: ["rain clouds mountain valley landscape", "misty mountains fog rain"] },
+  { id: "none", queries: ["starry night sky landscape silhouette", "night sky stars mountains"],
+    subjects: ["night", "star", "milky", "sky"], },
+  { id: "rain", queries: ["rain clouds mountain valley landscape", "misty mountains fog rain"],
+    subjects: ["rain", "fog", "mist", "cloud"], },
   {
     id: "thunder-storm",
     queries: [
@@ -59,8 +61,10 @@ const SCENES = [
       "thunderstorm cloud sky prairie",
       "dark storm sky field",
     ],
+    subjects: ["storm", "thunder", "cloud"],
   },
-  { id: "thunder", queries: ["lightning storm sky night", "lightning bolt sky"] },
+  { id: "thunder", queries: ["lightning strike night sky", "lightning bolt thunderstorm", "lightning over city night"],
+    subjects: ["lightning", "thunder"], },
   {
     id: "wind",
     queries: [
@@ -68,40 +72,39 @@ const SCENES = [
       "sunflower field summer sky",
       "grass field wind sky clouds",
     ],
+    subjects: ["field", "wheat", "sunflower", "grass", "meadow"],
   },
-  { id: "wave", queries: ["ocean waves sea horizon sunset", "sea waves coast"] },
-  { id: "river", queries: ["river valley forest green landscape", "mountain river stream"] },
+  { id: "wave", queries: ["ocean waves sea horizon sunset", "sea waves coast"],
+    subjects: ["wave", "sea", "ocean", "surf", "coast"], },
+  { id: "river", queries: ["river flowing forest rocks", "mountain stream river forest", "river rapids landscape"],
+    subjects: ["river", "stream", "creek", "rapid"], },
   {
     id: "fire",
-    queries: ["campfire night flames dark", "bonfire flames night", "fire embers dark"],
+    queries: ["campfire at night", "bonfire flames dark", "camp fire burning night"],
+    subjects: ["campfire", "bonfire", "flame"],
   },
   {
     id: "birds",
-    queries: [
-      "sunrise mountains clouds landscape",
-      "birds flying sky sunrise",
-      "dawn sky clouds landscape",
-    ],
+    queries: ["flock birds flying sky", "birds silhouette sunset flock", "seagulls flying sky"],
+    subjects: ["bird", "gull", "flock", "crane", "goose"],
   },
-  { id: "crickets", queries: ["meadow grass dusk field evening", "meadow wildflowers summer"] },
-  { id: "night-forest", queries: ["forest night moonlight trees", "dark forest trees mist"] },
-  { id: "owl", queries: ["full moon night sky trees silhouette", "moon night clouds"] },
-  { id: "cat", queries: ["golden hour warm sunset hills", "sunset countryside warm light"] },
+  { id: "crickets", queries: ["meadow grass dusk field evening", "meadow wildflowers summer"],
+    subjects: ["meadow", "grass", "field", "wildflower"], },
+  { id: "night-forest", queries: ["forest at night moonlight", "night forest trees stars", "moonlit forest"],
+    subjects: ["night", "moonlit", "moonlight"], },
+  { id: "owl", queries: ["full moon night sky trees silhouette", "moon night clouds"],
+    subjects: ["moon", "night"], },
+  { id: "cat", queries: ["cat sleeping window sunlight", "cat resting indoor warm light", "domestic cat portrait window"],
+    subjects: ["cat", "kitten", "feline"], },
   {
     id: "whale",
-    queries: [
-      "underwater ocean blue sunlight",
-      "underwater sea light rays",
-      "deep blue sea underwater",
-    ],
+    queries: ["humpback whale ocean surface", "whale tail fluke sea", "whale breaching ocean"],
+    subjects: ["whale", "humpback", "orca"],
   },
   {
     id: "train",
-    queries: [
-      "railway countryside landscape dusk",
-      "railway track landscape",
-      "train tracks countryside",
-    ],
+    queries: ["steam locomotive railway landscape", "train in mountain landscape", "passenger train countryside"],
+    subjects: ["locomotive", "train"],
   },
 ];
 
@@ -141,7 +144,18 @@ async function search(query) {
   return Object.values(payload?.query?.pages ?? {});
 }
 
-function pickCandidate(pages) {
+/**
+ * Commons full-text search matches file *descriptions*, so a query for
+ * "campfire" happily returns an architectural survey photo whose caption
+ * mentions a fireplace. Requiring the subject word in the file's own title is
+ * what keeps the backdrop showing the thing the sound is named after.
+ */
+function isRelevant(title, subjects) {
+  const haystack = title.toLowerCase();
+  return subjects.some((word) => haystack.includes(word));
+}
+
+function pickCandidate(pages, subjects) {
   for (const page of pages) {
     const info = page.imageinfo?.[0];
     if (info === undefined) continue;
@@ -154,8 +168,11 @@ function pickCandidate(pages) {
     if (!(info.thumbwidth > info.thumbheight)) continue;
     if (!info.thumburl) continue;
 
+    const title = page.title.replace(/^File:/, "");
+    if (!isRelevant(title, subjects)) continue;
+
     return {
-      title: plain(page.title.replace(/^File:/, "")),
+      title: plain(title),
       author: plain(meta.Artist?.value) || "Unknown",
       licence: plain(licence),
       source: info.descriptionurl,
@@ -205,7 +222,7 @@ async function main() {
       // giving up and letting the vector scene stand in.
       let picked = null;
       for (const query of scene.queries) {
-        picked = pickCandidate(await search(query));
+        picked = pickCandidate(await search(query), scene.subjects);
         if (picked !== null) break;
         await new Promise((r) => setTimeout(r, 300));
       }

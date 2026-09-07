@@ -39,7 +39,7 @@ export function AmbientPicker({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[85dvh] rounded-t-[28px] border-0 bg-neutral-900 pb-10"
+        className="rounded-t-[28px] border-0 bg-neutral-900 pb-10 data-[side=bottom]:h-[85dvh]"
         aria-describedby={undefined}
       >
         <SheetTitle className="sr-only">Background sound</SheetTitle>
@@ -83,7 +83,8 @@ export function AmbientPicker({
             />
           </div>
 
-          <div className="no-scrollbar grid flex-1 grid-cols-3 gap-3 overflow-y-auto px-5 pb-6">
+          <div data-vaul-no-drag
+            className="no-scrollbar grid min-h-0 flex-1 grid-cols-3 gap-3 touch-pan-y overscroll-contain overflow-y-auto px-5 pb-6">
             {results.map((sound) => {
               const active =
                 ambient?.id === sound.id ||

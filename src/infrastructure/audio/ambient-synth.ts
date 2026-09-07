@@ -449,52 +449,103 @@ const BUILDERS: Record<string, Builder> = {
   },
 
   cat: (ctx, out) => {
-    // A purr: low pulses at roughly 25Hz, which is what a purr actually is.
+    /*
+     * A purr plus occasional meows.
+     *
+     * The purr alone was inaudible in practice: it lived entirely under a
+     * 220Hz lowpass, and phone speakers roll off steeply below ~300Hz, so on
+     * the target device this bed played silence. The purr now keeps some
+     * upper texture, and meows carry the identity in the band a phone can
+     * actually reproduce.
+     */
     const noise = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 220);
+    const body = filter(ctx, "lowpass", 900);
     const gain = ctx.createGain();
-    gain.gain.value = 0.25;
+    gain.gain.value = 0.3;
 
+    // ~25Hz amplitude pulses are what makes a purr read as a purr.
     const pulse = ctx.createOscillator();
-    pulse.type = "square";
-    pulse.frequency.value = 25;
+    pulse.type = "sine";
+    pulse.frequency.value = 26;
     const pulseDepth = ctx.createGain();
-    pulseDepth.gain.value = 0.12;
+    pulseDepth.gain.value = 0.18;
     pulse.connect(pulseDepth);
     pulseDepth.connect(gain.gain);
     pulse.start(0);
 
-    const breathe = lfo(ctx, 0.15, 0.08, low.frequency, 220);
+    const breathe = lfo(ctx, 0.12, 260, body.frequency, 900);
 
-    noise.connect(low);
-    low.connect(gain);
+    noise.connect(body);
+    body.connect(gain);
     gain.connect(out);
+
+    // A meow: two glides, the second falling — roughly "me-ow".
+    const cancel = scheduler(6000, 16000, () => {
+      const base = 520 + Math.random() * 260;
+      tone(ctx, out, {
+        startFreq: base * 0.82,
+        endFreq: base,
+        duration: 0.22,
+        gain: 0.15,
+        type: "sawtooth",
+      });
+      setTimeout(
+        () =>
+          tone(ctx, out, {
+            startFreq: base,
+            endFreq: base * 0.62,
+            duration: 0.42,
+            gain: 0.13,
+            type: "sawtooth",
+          }),
+        200,
+      );
+    });
 
     return () => {
       noise.stop();
       pulse.stop();
       breathe.stop();
+      cancel();
     };
   },
 
   whale: (ctx, out) => {
+    /*
+     * Whale song over deep water.
+     *
+     * The calls previously started near 180Hz and glided down to ~70Hz, which
+     * a phone speaker cannot reproduce — the sound existed but could not be
+     * heard. They now sit an octave higher, where the instrument is audible,
+     * and the calls are frequent and loud enough to actually register.
+     */
     const bed = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 200);
+    const low = filter(ctx, "lowpass", 420);
     const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.16;
+    bedGain.gain.value = 0.2;
     bed.connect(low);
     low.connect(bedGain);
     bedGain.connect(out);
 
-    // Long descending calls.
-    const cancel = scheduler(6000, 15000, () => {
-      const base = 180 + Math.random() * 220;
+    const cancel = scheduler(4000, 9000, () => {
+      const base = 420 + Math.random() * 320;
+      // A long descending moan, then a shorter answering rise.
       tone(ctx, out, {
         startFreq: base,
-        endFreq: base * (0.4 + Math.random() * 0.3),
-        duration: 1.6 + Math.random() * 1.8,
-        gain: 0.11,
+        endFreq: base * (0.55 + Math.random() * 0.2),
+        duration: 1.8 + Math.random() * 1.6,
+        gain: 0.2,
       });
+      setTimeout(
+        () =>
+          tone(ctx, out, {
+            startFreq: base * 0.62,
+            endFreq: base * 0.9,
+            duration: 1.1,
+            gain: 0.14,
+          }),
+        2200,
+      );
     });
 
     return () => {

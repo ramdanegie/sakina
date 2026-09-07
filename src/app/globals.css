@@ -248,7 +248,21 @@
     );
   }
 
-  /* Every fixed bottom element must clear the home indicator. */
+  /*
+   * Safe-area insets.
+   *
+   * These live in @layer components, so ANY padding utility on the same
+   * element silently beats them — `pt-4` and `.safe-top` both set padding-top,
+   * equal specificity, and utilities are emitted later. That is exactly what
+   * happened: every screen except the player carried both classes, so the
+   * inset never applied and headers ran under the iOS status bar.
+   *
+   * Screens now fold the inset into a single arbitrary utility instead:
+   *   pt-[calc(env(safe-area-inset-top)+1rem)]
+   *
+   * These two remain only for elements that set no other padding on that
+   * side. If you add one, make sure nothing else pads the same edge.
+   */
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

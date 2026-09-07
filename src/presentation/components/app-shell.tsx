@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-lg">
-        <div className="pointer-events-auto flex flex-col gap-2 px-3 pb-2 safe-bottom">
+        <div className="pointer-events-auto flex flex-col gap-2 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
           {hasTrack ? <MiniPlayer /> : null}
           <BottomNav />
         </div>

@@ -50,7 +50,7 @@ export function QueuePanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="glass h-[70dvh] rounded-t-[28px] border-0 pb-8"
+        className="glass rounded-t-[28px] border-0 pb-8 data-[side=bottom]:h-[70dvh]"
         aria-describedby={undefined}
       >
         <SheetTitle className="sr-only">Playback queue</SheetTitle>
@@ -109,7 +109,8 @@ export function QueuePanel({
             />
           </div>
 
-          <ul className="no-scrollbar flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+          <ul data-vaul-no-drag
+            className="no-scrollbar min-h-0 flex-1 space-y-1 touch-pan-y overscroll-contain overflow-y-auto px-3 pb-4">
             {visible.map(({ track, index }) => {
               const active = track.id === currentTrack?.id;
 

@@ -60,7 +60,7 @@ export default function SearchPage() {
 
   return (
     <div className="pb-6">
-      <header className="screen-header safe-top px-5 pt-4 pb-4">
+      <header className="screen-header px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4">
         <h1 className="mb-4 text-4xl font-bold text-foreground">Search</h1>
 
         <div className="relative">

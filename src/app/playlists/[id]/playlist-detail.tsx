@@ -75,7 +75,7 @@ export function PlaylistDetail({ id }: { id: string }) {
     <div className="pb-6">
       <header
         className={cn(
-          "safe-top bg-gradient-to-b px-5 pt-4 pb-6",
+          "bg-gradient-to-b px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6",
           playlist.gradient,
         )}
       >

@@ -59,7 +59,7 @@ export default function SurahIndexPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <header className="screen-header safe-top px-5 pt-4 pb-6">
+      <header className="screen-header px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6">
         <h1 className="text-foreground text-4xl font-bold">Read</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           All 114 surahs, with translation and tafsir.

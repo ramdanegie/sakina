@@ -2,10 +2,24 @@ import { Entity } from "../shared/entity";
 import { HabitTracker } from "./habit-tracker.service";
 import { LocalDay } from "./value-objects";
 
+/**
+ * How the time was spent. Both count toward the daily goal — sitting with the
+ * text is engaging with the Quran just as listening is, and a reader who only
+ * reads should not see an empty streak.
+ */
+export const SessionKind = {
+  Listening: "listening",
+  Reading: "reading",
+} as const;
+
+export type SessionKind = (typeof SessionKind)[keyof typeof SessionKind];
+
 export interface ListeningSessionProps {
   readonly id: string;
-  readonly trackId: string;
-  readonly reciterId: string;
+  readonly kind: SessionKind;
+  /** Null for reading: there is no recording involved. */
+  readonly trackId: string | null;
+  readonly reciterId: string | null;
   readonly surahNumber: number;
   readonly ambientId: string | null;
   readonly startedAt: Date;
@@ -33,6 +47,27 @@ export class ListeningSession extends Entity<string> {
   }): ListeningSession {
     return new ListeningSession({
       ...params,
+      kind: SessionKind.Listening,
+      endedAt: null,
+      listenedSeconds: 0,
+      day: LocalDay.fromDate(params.startedAt),
+    });
+  }
+
+  /** A reading session — no reciter, no recording, no ambient bed. */
+  static beginReading(params: {
+    id: string;
+    surahNumber: number;
+    startedAt: Date;
+  }): ListeningSession {
+    return new ListeningSession({
+      id: params.id,
+      kind: SessionKind.Reading,
+      trackId: null,
+      reciterId: null,
+      surahNumber: params.surahNumber,
+      ambientId: null,
+      startedAt: params.startedAt,
       endedAt: null,
       listenedSeconds: 0,
       day: LocalDay.fromDate(params.startedAt),
@@ -43,11 +78,15 @@ export class ListeningSession extends Entity<string> {
     return new ListeningSession(props);
   }
 
-  get trackId(): string {
+  get kind(): SessionKind {
+    return this.props.kind;
+  }
+
+  get trackId(): string | null {
     return this.props.trackId;
   }
 
-  get reciterId(): string {
+  get reciterId(): string | null {
     return this.props.reciterId;
   }
 

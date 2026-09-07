@@ -48,12 +48,52 @@ export class RecordListeningProgress {
     });
   }
 
+  /**
+   * Begin (or switch to) a reading session for a surah.
+   *
+   * Reading is a separate session kind but feeds the same daily totals: time
+   * spent with the text counts toward the goal exactly as listening does. A
+   * reader who never presses play should still see a streak.
+   */
+  beginReading(surahNumber: number): void {
+    if (
+      this.active?.kind === "reading" &&
+      this.active.surahNumber === surahNumber
+    ) {
+      return;
+    }
+
+    void this.flush();
+
+    this.active = ListeningSession.beginReading({
+      id: this.ids.next(),
+      surahNumber,
+      startedAt: this.clock.now(),
+    });
+  }
+
   /** Add heard seconds. Called on every timeupdate tick. */
   addSeconds(delta: number): void {
     this.active?.addListenedSeconds(delta);
   }
 
-  /** Persist the active session if it is long enough to count. */
+  /**
+   * Save the session so far WITHOUT closing it.
+   *
+   * Called on a timer and when the page is hidden. `flush` cannot serve this
+   * purpose: it clears the active session, so using it mid-listen would stop
+   * time accumulating from that moment on. Saving is an upsert keyed by the
+   * session id, so repeated checkpoints just update the same row.
+   */
+  async checkpoint(): Promise<Result<void>> {
+    const session = this.active;
+    if (session === null) return Ok(undefined);
+    if (!session.isCountable) return Ok(undefined);
+
+    return this.sessions.save(session);
+  }
+
+  /** Persist the active session and close it. */
   async flush(): Promise<Result<void>> {
     const session = this.active;
     if (session === null) return Ok(undefined);

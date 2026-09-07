@@ -16,7 +16,7 @@ export default function CreditsPage() {
 
   return (
     <div className="pb-6">
-      <header className="screen-header safe-top px-5 pt-4 pb-6">
+      <header className="screen-header px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6">
         <Link
           href="/settings"
           aria-label="Back"

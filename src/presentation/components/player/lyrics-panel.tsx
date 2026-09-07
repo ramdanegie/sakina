@@ -46,7 +46,7 @@ export function LyricsPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="glass mx-auto h-[85dvh] max-w-lg rounded-t-[28px] border-0 pb-8 text-white"
+        className="glass mx-auto max-w-lg rounded-t-[28px] border-0 pb-8 text-white data-[side=bottom]:h-[85dvh]"
         aria-describedby={undefined}
       >
         <div className="flex h-full flex-col">
@@ -81,7 +81,14 @@ export function LyricsPanel({
               Could not load the text. Check your connection.
             </p>
           ) : (
-            <div className="no-scrollbar flex-1 overflow-y-auto px-3 pt-3">
+            <div
+              // `data-vaul-no-drag` is essential: this sheet lives inside the
+              // player's Vaul drawer, which treats a vertical drag as "dismiss".
+              // Without it the drawer swallows the gesture and the list cannot
+              // be scrolled by touch at all.
+              data-vaul-no-drag
+              className="no-scrollbar min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-auto px-3 pt-3"
+            >
               <VerseList
                 surahNumber={surahNumber}
                 ayahs={ayahs ?? []}

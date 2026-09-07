@@ -8,6 +8,7 @@ import {
   useTranslationEdition,
 } from "@/presentation/hooks/use-scripture";
 import { usePlaySurah } from "@/presentation/hooks/use-play-surah";
+import { useReadingTracker } from "@/presentation/hooks/use-reading-tracker";
 import { VerseList } from "@/presentation/components/reader/verse-list";
 import { useSettingsStore, Language } from "@/presentation/stores/settings.store";
 
@@ -23,6 +24,9 @@ export function SurahReader({ surah }: { surah: SurahMeta }) {
   const playSurah = usePlaySurah();
   const language = useSettingsStore((s) => s.language);
 
+  // Time on this page counts toward the daily goal.
+  useReadingTracker(surah.number);
+
   const localName =
     language === Language.Indonesian
       ? surah.nameIndonesian
@@ -30,7 +34,7 @@ export function SurahReader({ surah }: { surah: SurahMeta }) {
 
   return (
     <div className="pb-6">
-      <header className="screen-header safe-top px-5 pt-4 pb-6">
+      <header className="screen-header px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6">
         <Link
           href="/surah"
           aria-label="All surahs"

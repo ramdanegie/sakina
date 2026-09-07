@@ -1,4 +1,7 @@
-import { ListeningSession } from "@/domain/habit/listening-session.entity";
+import {
+  ListeningSession,
+  SessionKind,
+} from "@/domain/habit/listening-session.entity";
 import { DailyGoal, LocalDay } from "@/domain/habit/value-objects";
 import type { DailyTotal } from "@/domain/habit/habit-tracker.service";
 import type {
@@ -12,6 +15,7 @@ function toRow(session: ListeningSession): ListeningSessionRow {
   const snapshot = session.snapshot();
   return {
     id: snapshot.id,
+    kind: snapshot.kind,
     trackId: snapshot.trackId,
     reciterId: snapshot.reciterId,
     surahNumber: snapshot.surahNumber,
@@ -29,6 +33,8 @@ function toEntity(row: ListeningSessionRow): ListeningSession | null {
 
   return ListeningSession.rehydrate({
     id: row.id,
+    // Rows written before reading was tracked have no kind.
+    kind: (row.kind as SessionKind) ?? SessionKind.Listening,
     trackId: row.trackId,
     reciterId: row.reciterId,
     surahNumber: row.surahNumber,
@@ -111,6 +117,8 @@ export class DexieListeningSessionRepository
     const rows = await db.listeningSessions.toArray();
     const totals = new Map<string, number>();
     for (const row of rows) {
+      // Reading rows carry no reciter.
+      if (row.reciterId === null) continue;
       totals.set(
         row.reciterId,
         (totals.get(row.reciterId) ?? 0) + row.listenedSeconds,

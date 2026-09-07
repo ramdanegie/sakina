@@ -64,8 +64,10 @@ export interface PlaybackStateRow {
 
 export interface ListeningSessionRow {
   id: string;
-  trackId: string;
-  reciterId: string;
+  /** "listening" | "reading" — both count toward the daily goal. */
+  kind: string;
+  trackId: string | null;
+  reciterId: string | null;
   surahNumber: number;
   ambientId: string | null;
   day: string; // YYYY-MM-DD in the listener's local timezone

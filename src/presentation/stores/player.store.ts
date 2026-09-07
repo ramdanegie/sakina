@@ -31,6 +31,12 @@ const mix = AmbientMix.empty();
 /** Persist at most every 5s; timeupdate fires ~4x/second. */
 const PERSIST_INTERVAL_MS = 5_000;
 
+/**
+ * How often an uninterrupted listen is banked to storage. Short enough that
+ * closing the tab loses little, long enough not to churn IndexedDB.
+ */
+const PERIODIC_FLUSH_MS = 30_000;
+
 interface PlayerState {
   // Projection of PlaybackSession
   status: PlaybackStatus;
@@ -175,6 +181,29 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const audio = getAudioContainer();
     if (audio === null || wired) return;
     wired = true;
+
+    // Listening time was only written on pause, skip or track change. Anyone
+    // who put a surah on and closed the tab lost the whole session — which is
+    // most of them. These two make the record durable:
+    //
+    //  - a periodic flush, so a long unbroken listen is banked as it happens
+    //  - a flush on pagehide/hidden, the last moment a mobile browser reliably
+    //    gives us before it freezes or discards the page
+    if (typeof window !== "undefined") {
+      setInterval(() => {
+        if (session.isPlaying) void getContainer().habit.checkpoint();
+      }, PERIODIC_FLUSH_MS);
+
+      const flushNow = () => {
+        void getContainer().habit.checkpoint();
+      };
+
+      // `pagehide` fires on iOS where `beforeunload` does not.
+      window.addEventListener("pagehide", flushNow);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") flushNow();
+      });
+    }
 
     audio.player.onLoadedMetadata((duration) => {
       session.reportProgress(session.position.seconds, duration);
