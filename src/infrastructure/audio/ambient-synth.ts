@@ -202,51 +202,68 @@ type Builder = (ctx: AudioContext, out: GainNode) => () => void;
 
 const BUILDERS: Record<string, Builder> = {
   rain: (ctx, out) => {
-    // Steady hiss plus a slower body, with gentle intensity drift.
+    /*
+     * Light rain — a patter, not a downpour.
+     *
+     * The previous bed was a broad, loud wash that read as heavy rain on a
+     * roof. Gentle rain is mostly *individual drops*: a quiet airy bed with
+     * discrete little impacts on top. So the wash is dialled well back and
+     * the character now comes from scheduled droplets.
+     */
     const hiss = startNoise(ctx, "white");
-    const hissBand = filter(ctx, "highpass", 900);
-    const hissTop = filter(ctx, "lowpass", 9000);
+    const hissBand = filter(ctx, "highpass", 1400);
+    const hissTop = filter(ctx, "lowpass", 7000);
     const hissGain = ctx.createGain();
-    hissGain.gain.value = 0.35;
+    hissGain.gain.value = 0.1;
 
-    const body = startNoise(ctx, "pink");
-    const bodyBand = filter(ctx, "lowpass", 700);
-    const bodyGain = ctx.createGain();
-    bodyGain.gain.value = 0.5;
-
-    const drift = lfo(ctx, 0.05, 0.08, hissGain.gain, 0.35);
+    const drift = lfo(ctx, 0.05, 0.03, hissGain.gain, 0.1);
 
     hiss.connect(hissBand);
     hissBand.connect(hissTop);
     hissTop.connect(hissGain);
     hissGain.connect(out);
 
-    body.connect(bodyBand);
-    bodyBand.connect(bodyGain);
-    bodyGain.connect(out);
+    // Droplets: short, bright, irregular. These carry the identity.
+    const cancel = scheduler(45, 190, () => {
+      burst(ctx, out, {
+        duration: 0.02 + Math.random() * 0.035,
+        frequency: 1800 + Math.random() * 3200,
+        q: 4,
+        gain: 0.05 + Math.random() * 0.07,
+      });
+    });
 
     return () => {
       hiss.stop();
-      body.stop();
       drift.stop();
+      cancel();
     };
   },
 
   thunder: (ctx, out) => {
+    /*
+     * Distant thunder.
+     *
+     * Both the bed and the strikes used to live under ~180Hz, which the
+     * output high-pass now removes and a phone speaker never reproduced in
+     * the first place. They are moved up into the range that actually carries
+     * the impression of a roll — the weight of thunder on a small speaker
+     * comes from the low mids, not from sub-bass.
+     */
     const rumble = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 180);
+    const low = filter(ctx, "lowpass", 620);
     const gain = ctx.createGain();
-    gain.gain.value = 0.18;
+    gain.gain.value = 0.12;
     rumble.connect(low);
     low.connect(gain);
     gain.connect(out);
 
     const cancel = scheduler(7000, 20000, () => {
       burst(ctx, out, {
-        duration: 2.5 + Math.random() * 2,
-        frequency: 60 + Math.random() * 60,
-        q: 0.7,
-        gain: 0.5,
+        duration: 2.4 + Math.random() * 2,
+        frequency: 260 + Math.random() * 220,
+        q: 0.8,
+        gain: 0.55,
         type: "lowpass",
         color: "brown",
       });
@@ -354,29 +371,35 @@ const BUILDERS: Record<string, Builder> = {
   },
 
   crickets: (ctx, out) => {
+    /*
+     * Chirps from an oscillator, not filtered noise.
+     *
+     * The old version pushed noise through a Q-26 bandpass. That filter is so
+     * narrow it passes almost none of a broadband source, so the chirps were
+     * effectively silent however high the gain went. A real cricket
+     * stridulates close to a pure tone, so an oscillator is both louder and
+     * more accurate.
+     */
     const bed = startNoise(ctx, "pink");
-    const low = filter(ctx, "lowpass", 300);
+    const low = filter(ctx, "lowpass", 900);
     const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.08;
+    bedGain.gain.value = 0.05;
     bed.connect(low);
     low.connect(bedGain);
     bedGain.connect(out);
 
-    // A chirp is a rapid train of very short bursts around 4-5kHz.
-    const cancel = scheduler(700, 2200, () => {
-      const base = 3800 + Math.random() * 1400;
+    const cancel = scheduler(600, 1900, () => {
+      const base = 4200 + Math.random() * 800;
       const pulses = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < pulses; i++) {
-        setTimeout(
-          () =>
-            burst(ctx, out, {
-              duration: 0.035,
-              frequency: base,
-              q: 26,
-              gain: 0.1,
-            }),
-          i * 55,
-        );
+        setTimeout(() => {
+          tone(ctx, out, {
+            startFreq: base,
+            endFreq: base * 0.97,
+            duration: 0.05,
+            gain: 0.14,
+          });
+        }, i * 62);
       }
     });
 
@@ -418,27 +441,41 @@ const BUILDERS: Record<string, Builder> = {
   },
 
   owl: (ctx, out) => {
-    const bed = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 260);
+    /*
+     * Hoots, with only a whisper of night air behind them.
+     *
+     * The bed was brown noise under a 260Hz lowpass at four times this gain —
+     * pure rumble, and loud enough to bury the hoots it was meant to sit
+     * behind. The bed is now quiet and airy, and the calls are the loudest
+     * thing here, as they should be.
+     */
+    const bed = startNoise(ctx, "pink");
+    const low = filter(ctx, "lowpass", 1600);
     const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.12;
+    bedGain.gain.value = 0.04;
     bed.connect(low);
     low.connect(bedGain);
     bedGain.connect(out);
 
-    // Two-note hoot, occasionally.
-    const cancel = scheduler(5000, 14000, () => {
-      const base = 330 + Math.random() * 70;
-      tone(ctx, out, { startFreq: base, endFreq: base * 0.92, duration: 0.45, gain: 0.12 });
+    // A tawny owl's two-part call, an octave up from the old version so a
+    // phone speaker can actually render it.
+    const cancel = scheduler(4500, 11000, () => {
+      const base = 620 + Math.random() * 120;
+      tone(ctx, out, {
+        startFreq: base,
+        endFreq: base * 0.92,
+        duration: 0.4,
+        gain: 0.24,
+      });
       setTimeout(
         () =>
           tone(ctx, out, {
-            startFreq: base * 0.96,
-            endFreq: base * 0.85,
-            duration: 0.6,
-            gain: 0.1,
+            startFreq: base * 0.95,
+            endFreq: base * 0.84,
+            duration: 0.55,
+            gain: 0.2,
           }),
-        620,
+        600,
       );
     });
 
@@ -450,63 +487,63 @@ const BUILDERS: Record<string, Builder> = {
 
   cat: (ctx, out) => {
     /*
-     * A purr plus occasional meows.
+     * Purr plus soft meows.
      *
-     * The purr alone was inaudible in practice: it lived entirely under a
-     * 220Hz lowpass, and phone speakers roll off steeply below ~300Hz, so on
-     * the target device this bed played silence. The purr now keeps some
-     * upper texture, and meows carry the identity in the band a phone can
-     * actually reproduce.
+     * The first attempt used a sawtooth, which on a small speaker reads as an
+     * electronic buzz rather than an animal. A triangle carries far less
+     * upper-harmonic energy, and a gentle bandpass around the vowel region
+     * gives the call its shape without the rasp.
      */
-    const noise = startNoise(ctx, "brown");
-    const body = filter(ctx, "lowpass", 900);
+    const noise = startNoise(ctx, "pink");
+    const body = filter(ctx, "lowpass", 1100);
     const gain = ctx.createGain();
-    gain.gain.value = 0.3;
+    gain.gain.value = 0.16;
 
-    // ~25Hz amplitude pulses are what makes a purr read as a purr.
+    // ~26Hz amplitude pulses are what makes a purr read as a purr.
     const pulse = ctx.createOscillator();
     pulse.type = "sine";
     pulse.frequency.value = 26;
     const pulseDepth = ctx.createGain();
-    pulseDepth.gain.value = 0.18;
+    pulseDepth.gain.value = 0.1;
     pulse.connect(pulseDepth);
     pulseDepth.connect(gain.gain);
     pulse.start(0);
-
-    const breathe = lfo(ctx, 0.12, 260, body.frequency, 900);
 
     noise.connect(body);
     body.connect(gain);
     gain.connect(out);
 
-    // A meow: two glides, the second falling — roughly "me-ow".
-    const cancel = scheduler(6000, 16000, () => {
-      const base = 520 + Math.random() * 260;
-      tone(ctx, out, {
-        startFreq: base * 0.82,
+    // Shape the meow through a formant-ish band so it sounds voiced.
+    const voice = filter(ctx, "bandpass", 900, 1.6);
+    voice.connect(out);
+
+    const cancel = scheduler(7000, 18000, () => {
+      const base = 440 + Math.random() * 160;
+      tone(ctx, voice, {
+        startFreq: base * 0.85,
         endFreq: base,
-        duration: 0.22,
-        gain: 0.15,
-        type: "sawtooth",
+        duration: 0.26,
+        gain: 0.22,
+        type: "triangle",
       });
       setTimeout(
         () =>
-          tone(ctx, out, {
+          tone(ctx, voice, {
             startFreq: base,
-            endFreq: base * 0.62,
-            duration: 0.42,
-            gain: 0.13,
-            type: "sawtooth",
+            endFreq: base * 0.7,
+            duration: 0.5,
+            gain: 0.2,
+            type: "triangle",
           }),
-        200,
+        240,
       );
     });
 
     return () => {
       noise.stop();
       pulse.stop();
-      breathe.stop();
       cancel();
+      voice.disconnect();
     };
   },
 
@@ -610,12 +647,45 @@ export function createAmbientSource(
 
   const output = ctx.createGain();
   output.gain.value = 0;
-  const teardown = build(ctx, output);
+
+  /*
+   * Every bed passes through a high-pass before it leaves.
+   *
+   * Most generators use a noise bed to suggest air or water, and brown noise
+   * piles its energy into the bottom octaves. Stacked across the catalogue
+   * that read as a constant low rumble that muddied everything and masked the
+   * character sounds — the owl's hoots were audibly buried under their own
+   * bed.
+   *
+   * A phone speaker cannot reproduce much below ~150Hz anyway; it only turns
+   * that energy into cone excursion and distortion. Removing it costs nothing
+   * audible and clears the mud. Two poles, so the slope is gentle enough not
+   * to thin out thunder.
+   */
+  const rumbleGuard = ctx.createBiquadFilter();
+  rumbleGuard.type = "highpass";
+  rumbleGuard.frequency.value = 150;
+  rumbleGuard.Q.value = 0.7;
+
+  const stage2 = ctx.createBiquadFilter();
+  stage2.type = "highpass";
+  stage2.frequency.value = 150;
+  stage2.Q.value = 0.7;
+
+  const inner = ctx.createGain();
+  const teardown = build(ctx, inner);
+
+  inner.connect(rumbleGuard);
+  rumbleGuard.connect(stage2);
+  stage2.connect(output);
 
   return {
     output,
     stop() {
       teardown();
+      inner.disconnect();
+      rumbleGuard.disconnect();
+      stage2.disconnect();
       output.disconnect();
     },
   };

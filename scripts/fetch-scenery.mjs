@@ -63,7 +63,8 @@ const SCENES = [
     ],
     subjects: ["storm", "thunder", "cloud"],
   },
-  { id: "thunder", queries: ["lightning strike night sky", "lightning bolt thunderstorm", "lightning over city night"],
+  { id: "thunder",
+    pin: "Lightning strike in Tampa Florida.jpg", queries: ["lightning strike night sky", "lightning bolt thunderstorm", "lightning over city night"],
     subjects: ["lightning", "thunder"], },
   {
     id: "wind",
@@ -98,6 +99,7 @@ const SCENES = [
     subjects: ["cat", "kitten", "feline"], },
   {
     id: "whale",
+    pin: "Humpback Whale Underwater (37209287981).jpg",
     queries: ["humpback whale ocean surface", "whale tail fluke sea", "whale breaching ocean"],
     subjects: ["whale", "humpback", "orca"],
   },
@@ -119,6 +121,35 @@ function plain(value) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 120);
+}
+
+/**
+ * Fetch one exact Commons file by title.
+ *
+ * Search ranks on description text, so for a few scenes it simply will not
+ * surface the right picture no matter how the query is phrased — every
+ * "whale underwater" attempt returned herons and shorelines. Where a good
+ * file has been identified by hand, pinning it is more honest than tuning
+ * keywords until the ranking happens to cooperate.
+ */
+async function fetchByTitle(title) {
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    titles: `File:${title}`,
+    prop: "imageinfo",
+    iiprop: "url|extmetadata",
+    iiurlwidth: "1600",
+  });
+
+  const response = await fetch(`${API}?${params}`, {
+    headers: { "User-Agent": UA },
+  });
+  if (!response.ok) return null;
+
+  const payload = await response.json();
+  const pages = Object.values(payload?.query?.pages ?? {});
+  return pages.length > 0 ? pages : null;
 }
 
 async function search(query) {
@@ -221,7 +252,14 @@ async function main() {
       // often yields nothing usable. Fall through the alternates before
       // giving up and letting the vector scene stand in.
       let picked = null;
-      for (const query of scene.queries) {
+
+      if (scene.pin !== undefined) {
+        const pages = await fetchByTitle(scene.pin);
+        // A pinned file is chosen deliberately, so skip the relevance gate.
+        if (pages !== null) picked = pickCandidate(pages, [""]);
+      }
+
+      for (const query of picked !== null ? [] : scene.queries) {
         picked = pickCandidate(await search(query), scene.subjects);
         if (picked !== null) break;
         await new Promise((r) => setTimeout(r, 300));
