@@ -30,7 +30,7 @@ export function InsightsCard({ detailed = false }: { detailed?: boolean }) {
     <section className="space-y-3">
       {!detailed ? (
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Insights</h2>
+          <h2 className="text-xl font-bold text-foreground">Insights</h2>
           <Link href="/insights" className="text-accent text-sm font-medium">
             See more
           </Link>
@@ -38,19 +38,19 @@ export function InsightsCard({ detailed = false }: { detailed?: boolean }) {
       ) : null}
 
       <div className="bg-card space-y-5 rounded-2xl p-4">
-        <div className="grid grid-cols-3 divide-x divide-white/10">
+        <div className="grid grid-cols-3 divide-x divide-border">
           <Metric
             icon={<Flame className="size-5 text-orange-400" aria-hidden />}
             label="Streak"
             value={`${data.currentStreak} day${data.currentStreak === 1 ? "" : "s"}`}
           />
           <Metric
-            icon={<CalendarDays className="size-5 text-white/60" aria-hidden />}
+            icon={<CalendarDays className="size-5 text-muted-foreground" aria-hidden />}
             label="This week"
             value={formatMinutes(data.weekSeconds)}
           />
           <Metric
-            icon={<Award className="size-5 text-white/60" aria-hidden />}
+            icon={<Award className="size-5 text-muted-foreground" aria-hidden />}
             label="Record"
             value={`${data.longestStreak} day${data.longestStreak === 1 ? "" : "s"}`}
           />
@@ -73,14 +73,14 @@ export function InsightsCard({ detailed = false }: { detailed?: boolean }) {
                 className={cn(
                   "flex size-9 items-center justify-center rounded-full border",
                   cell.goalReached
-                    ? "border-white bg-white text-black"
-                    : "border-white/20 text-transparent",
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-transparent",
                 )}
                 aria-hidden
               >
                 <Check className="size-4" />
               </span>
-              <span className="text-xs text-white/50">{WEEKDAYS[index]}</span>
+              <span className="text-xs text-muted-foreground">{WEEKDAYS[index]}</span>
               <span className="sr-only">
                 {WEEKDAYS[index]}:{" "}
                 {cell.goalReached ? "goal reached" : "goal not reached"}
@@ -105,8 +105,8 @@ function Metric({
   return (
     <div className="flex flex-col items-center gap-1 px-2">
       {icon}
-      <span className="text-xs text-white/50">{label}</span>
-      <span className="tabular text-sm font-semibold text-white">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="tabular text-sm font-semibold text-foreground">{value}</span>
     </div>
   );
 }
@@ -141,7 +141,7 @@ function GoalRing({
           d={`M 20 95 A ${radius} ${radius} 0 0 1 160 95`}
           fill="none"
           stroke="currentColor"
-          className="text-white/10"
+          className="text-foreground/10"
           strokeWidth="14"
           strokeLinecap="round"
         />
@@ -149,7 +149,7 @@ function GoalRing({
           d={`M 20 95 A ${radius} ${radius} 0 0 1 160 95`}
           fill="none"
           stroke="currentColor"
-          className="text-white transition-[stroke-dashoffset] duration-500"
+          className="text-foreground transition-[stroke-dashoffset] duration-500"
           strokeWidth="14"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -158,13 +158,13 @@ function GoalRing({
       </svg>
 
       <div className="absolute inset-x-0 top-10 flex flex-col items-center gap-1">
-        <p className="text-sm text-white/70">Today&rsquo;s listening</p>
+        <p className="text-sm text-muted-foreground">Today&rsquo;s listening</p>
         {reached ? (
-          <span className="flex size-9 items-center justify-center rounded-full bg-white">
-            <Check className="size-5 text-black" aria-hidden />
+          <span className="bg-primary flex size-9 items-center justify-center rounded-full">
+            <Check className="text-primary-foreground size-5" aria-hidden />
           </span>
         ) : (
-          <span className="tabular text-lg font-semibold text-white">
+          <span className="tabular text-lg font-semibold text-foreground">
             {formatMinutes(todaySeconds)} / {formatMinutes(goalSeconds)}
           </span>
         )}

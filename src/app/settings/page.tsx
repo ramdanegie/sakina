@@ -1,59 +1,147 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import {
   Bug,
-  ChevronRight,
   Code2,
   Download,
+  Gauge,
   Heart,
   Info,
   Languages,
   Lightbulb,
+  Monitor,
+  Moon,
   Share2,
-  SlidersHorizontal,
+  SkipForward,
+  Smartphone,
+  Sun,
   Trash2,
+  Type,
+  Vibrate,
+  Wifi,
 } from "lucide-react";
+import { DonateSheet } from "@/presentation/components/settings/donate-dialog";
+import {
+  AfterMount,
+  ChoiceRow,
+  NavigationRow,
+  SettingsGroup,
+  ToggleRow,
+  type Choice,
+} from "@/presentation/components/settings/setting-rows";
+import {
+  formatBytes,
+  useStorageStats,
+} from "@/presentation/hooks/use-storage-stats";
+import {
+  ARABIC_FONT_SIZE_LABELS,
+  AUDIO_QUALITY_LABELS,
+  ArabicFontSize,
+  AudioQuality,
+  LANGUAGE_LABELS,
+  Language,
+  useSettingsStore,
+} from "@/presentation/stores/settings.store";
+import { APP_REPOSITORY_URL, APP_VERSION } from "@/presentation/lib/app-meta";
 
-/**
- * Settings.
- *
- * Where the reference app puts a "Subscriptions" block, this puts "Support us":
- * nothing here is gated, so the only ask is a voluntary one.
- */
+type ThemeChoice = "light" | "dark" | "system";
+
+const THEME_CHOICES: readonly Choice<ThemeChoice>[] = [
+  { value: "dark", label: "Dark", description: "Easiest on the eyes at night" },
+  { value: "light", label: "Light" },
+  { value: "system", label: "System", description: "Follow your device setting" },
+];
+
+const AUDIO_QUALITY_CHOICES: readonly Choice<AudioQuality>[] = [
+  {
+    value: AudioQuality.Auto,
+    label: AUDIO_QUALITY_LABELS[AudioQuality.Auto],
+    description: "Match the connection",
+  },
+  {
+    value: AudioQuality.Low,
+    label: AUDIO_QUALITY_LABELS[AudioQuality.Low],
+    description: "Roughly half the data",
+  },
+  {
+    value: AudioQuality.High,
+    label: AUDIO_QUALITY_LABELS[AudioQuality.High],
+    description: "Best available",
+  },
+];
+
+const LANGUAGE_CHOICES: readonly Choice<Language>[] = (
+  Object.values(Language) as Language[]
+).map((value) => ({ value, label: LANGUAGE_LABELS[value] }));
+
+const FONT_SIZE_CHOICES: readonly Choice<ArabicFontSize>[] = (
+  Object.values(ArabicFontSize) as ArabicFontSize[]
+).map((value) => ({ value, label: ARABIC_FONT_SIZE_LABELS[value] }));
+
 export default function SettingsPage() {
+  const { theme, setTheme } = useTheme();
+  const settings = useSettingsStore();
+  const { stats, clear, isLoading } = useStorageStats();
+  const [clearing, setClearing] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
+
+
   async function shareApp() {
     const url = typeof window === "undefined" ? "" : window.location.origin;
+    const payload = {
+      title: "Sakina — listen to the Quran, calmly",
+      text: "Listen to the Quran with ambient background sound. Every feature free.",
+      url,
+    };
+
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
-        await navigator.share({
-          title: "Sakina — listen to the Quran, calmly",
-          text: "Listen to the Quran with ambient background sound. Every feature free.",
-          url,
-        });
+        await navigator.share(payload);
         return;
       } catch {
-        // User dismissed the share sheet.
+        // Share sheet dismissed; fall through to the clipboard.
       }
     }
+
     if (typeof navigator !== "undefined" && navigator.clipboard != null) {
       await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
     }
+  }
+
+  async function clearDownloads() {
+    if (stats.downloadCount === 0) {
+      toast.info("Nothing downloaded yet");
+      return;
+    }
+
+    setClearing(true);
+    await clear();
+    setClearing(false);
+    toast.success("Downloaded audio removed");
   }
 
   return (
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-6">
-        <h1 className="text-4xl font-bold text-white">Settings</h1>
+        <h1 className="text-foreground text-4xl font-bold">Settings</h1>
       </header>
 
       <div className="space-y-6 px-5">
-        <div className="rounded-2xl bg-white p-4 text-black">
+        <div className="bg-card border-border/50 rounded-2xl border p-4">
           <div className="flex items-center gap-3">
-            <Heart className="size-8 shrink-0 fill-rose-500 text-rose-500" aria-hidden />
+            <Heart
+              className="size-8 shrink-0 fill-rose-500 text-rose-500"
+              aria-hidden
+            />
             <div className="min-w-0 flex-1">
-              <p className="font-bold">Everything is already unlocked</p>
-              <p className="text-sm text-black/60">
+              <p className="text-foreground font-bold">
+                Everything is already unlocked
+              </p>
+              <p className="text-muted-foreground text-sm">
                 No subscription, no ads, no locked features. If it is useful,
                 consider supporting the running costs.
               </p>
@@ -61,146 +149,171 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <Group label="Support us">
-          <Row icon={<Heart className="size-5" />} label="Donate" href="/support" />
-          <Row
+        <SettingsGroup label="Support us">
+          <NavigationRow
+            icon={<Heart className="size-5" />}
+            label="Donate"
+            onClick={() => setDonateOpen(true)}
+          />
+          <NavigationRow
             icon={<Share2 className="size-5" />}
             label="Share this app"
             onClick={() => void shareApp()}
           />
-          <Row
+          <NavigationRow
             icon={<Code2 className="size-5" />}
             label="Contribute on GitHub"
-            href="https://github.com"
+            href={APP_REPOSITORY_URL}
             external
           />
-        </Group>
+        </SettingsGroup>
 
-        <Group label="Playback">
-          <Row
-            icon={<SlidersHorizontal className="size-5" />}
-            label="Audio quality"
-            value="Auto"
-          />
-          <Row
-            icon={<SlidersHorizontal className="size-5" />}
-            label="Autoplay next surah"
-            value="On"
-          />
-        </Group>
+        <SettingsGroup label="Appearance">
+          <AfterMount>
+            <AfterMount>
+            <ChoiceRow
+                icon={
+                  theme === "light" ? (
+                    <Sun className="size-5" />
+                  ) : theme === "system" ? (
+                    <Monitor className="size-5" />
+                  ) : (
+                    <Moon className="size-5" />
+                  )
+                }
+                label="Theme"
+                value={(theme as ThemeChoice) ?? "dark"}
+                choices={THEME_CHOICES}
+                onChange={setTheme}
+              />
+            </AfterMount>
+            <ChoiceRow
+              icon={<Type className="size-5" />}
+              label="Arabic text size"
+              value={settings.arabicFontSize}
+              choices={FONT_SIZE_CHOICES}
+              onChange={settings.setArabicFontSize}
+            />
+          </AfterMount>
+          <AfterMount>
+            <ChoiceRow
+              icon={<Languages className="size-5" />}
+              label="Language"
+              value={settings.language}
+              choices={LANGUAGE_CHOICES}
+              onChange={settings.setLanguage}
+            />
+          </AfterMount>
+        </SettingsGroup>
 
-        <Group label="Downloads">
-          <Row
+        <SettingsGroup label="Playback">
+          <AfterMount>
+            <ChoiceRow
+              icon={<Gauge className="size-5" />}
+              label="Audio quality"
+              value={settings.audioQuality}
+              choices={AUDIO_QUALITY_CHOICES}
+              onChange={settings.setAudioQuality}
+            />
+          </AfterMount>
+          <AfterMount>
+            <ToggleRow
+              icon={<SkipForward className="size-5" />}
+              label="Autoplay next surah"
+              description="Continue to the next surah when one ends"
+              checked={settings.autoplayNext}
+              onCheckedChange={settings.setAutoplayNext}
+            />
+          </AfterMount>
+          <AfterMount>
+            <ToggleRow
+              icon={<Vibrate className="size-5" />}
+              label="Haptic feedback"
+              description="Short vibration on play, pause and favourite"
+              checked={settings.hapticFeedback}
+              onCheckedChange={settings.setHapticFeedback}
+            />
+          </AfterMount>
+        </SettingsGroup>
+
+        <SettingsGroup
+          label="Downloads"
+          footnote={
+            stats.freeBytes === null
+              ? undefined
+              : `${formatBytes(stats.freeBytes)} of space still available.`
+          }
+        >
+          <NavigationRow
             icon={<Download className="size-5" />}
-            label="Download manager"
-            value="0 items"
+            label="Downloaded surahs"
+            value={
+              isLoading
+                ? "…"
+                : `${stats.downloadCount} · ${formatBytes(stats.usedBytes)}`
+            }
+            href="/reciters"
           />
-          <Row
+          <AfterMount>
+            <ToggleRow
+              icon={<Wifi className="size-5" />}
+              label="Download on Wi-Fi only"
+              description="Skip downloads on a metered connection"
+              checked={settings.downloadOnWifiOnly}
+              onCheckedChange={settings.setDownloadOnWifiOnly}
+            />
+          </AfterMount>
+          <NavigationRow
             icon={<Trash2 className="size-5" />}
-            label="Clear cached audio"
+            label={clearing ? "Removing…" : "Clear downloaded audio"}
+            value={isLoading ? undefined : formatBytes(stats.usedBytes)}
+            onClick={() => void clearDownloads()}
           />
-        </Group>
+        </SettingsGroup>
 
-        <Group label="Appearance & language">
-          <Row
-            icon={<SlidersHorizontal className="size-5" />}
-            label="Theme"
-            value="Dark"
+        <SettingsGroup
+          label="Home screen"
+          footnote="iOS and Android copy the icon when the app is added. Changing it later needs a fresh install."
+        >
+          <NavigationRow
+            icon={<Smartphone className="size-5" />}
+            label="App icon"
+            href="/settings/icon"
           />
-          <Row
-            icon={<Languages className="size-5" />}
-            label="Language"
-            value="Bahasa Indonesia"
-          />
-        </Group>
+        </SettingsGroup>
 
-        <Group label="Feedback">
-          <Row
+        <SettingsGroup label="Feedback">
+          <NavigationRow
             icon={<Lightbulb className="size-5" />}
             label="Request a feature"
+            href={`${APP_REPOSITORY_URL}/issues/new?labels=enhancement`}
+            external
           />
-          <Row icon={<Bug className="size-5" />} label="Report a bug" />
-        </Group>
+          <NavigationRow
+            icon={<Bug className="size-5" />}
+            label="Report a bug"
+            href={`${APP_REPOSITORY_URL}/issues/new?labels=bug`}
+            external
+          />
+        </SettingsGroup>
 
-        <Group label="About">
-          <Row
+        <SettingsGroup label="About">
+          <NavigationRow
             icon={<Info className="size-5" />}
-            label="Credits & audio licences"
+            label="Credits & licences"
             href="/credits"
           />
-          <Row icon={<Info className="size-5" />} label="Version" value="0.1.0" />
-        </Group>
+          <NavigationRow
+            icon={<Info className="size-5" />}
+            label="Version"
+            value={APP_VERSION}
+            href={APP_REPOSITORY_URL}
+            external
+          />
+        </SettingsGroup>
       </div>
+
+      <DonateSheet open={donateOpen} onOpenChange={setDonateOpen} />
     </div>
-  );
-}
-
-function Group({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-2">
-      <h2 className="px-1 text-sm text-white/50">{label}</h2>
-      <div className="bg-card divide-y divide-white/5 overflow-hidden rounded-2xl">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  value,
-  href,
-  external = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string;
-  href?: string;
-  external?: boolean;
-  onClick?: () => void;
-}) {
-  const content = (
-    <>
-      <span className="text-white/70">{icon}</span>
-      <span className="flex-1 text-white">{label}</span>
-      {value !== undefined ? (
-        <span className="text-sm text-white/50">{value}</span>
-      ) : null}
-      <ChevronRight className="size-4 flip-rtl text-white/30" aria-hidden />
-    </>
-  );
-
-  const className =
-    "flex min-h-14 w-full items-center gap-3 px-4 text-start";
-
-  if (href !== undefined) {
-    return external ? (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer noopener"
-        className={className}
-      >
-        {content}
-      </a>
-    ) : (
-      <Link href={href} className={className}>
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <button type="button" onClick={onClick} className={className}>
-      {content}
-    </button>
   );
 }

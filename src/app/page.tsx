@@ -41,14 +41,14 @@ export default function HomePage() {
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-4xl font-bold text-white">Home</h1>
+          <h1 className="text-4xl font-bold text-foreground">Home</h1>
 
           <div className="flex items-center gap-2">
             {/* Where the reference app puts "Premium". Everything here is
                 already unlocked, so this asks for support instead of payment. */}
             <Link
               href="/settings"
-              className="glass flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium text-white"
+              className="glass flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium text-foreground"
             >
               <Heart className="size-4" aria-hidden />
               Support
@@ -57,7 +57,7 @@ export default function HomePage() {
             <Link
               href="/insights"
               aria-label="Insights"
-              className="glass flex size-11 items-center justify-center rounded-full text-white"
+              className="glass flex size-11 items-center justify-center rounded-full text-foreground"
             >
               <BarChart3 className="size-5" aria-hidden />
             </Link>
@@ -69,11 +69,11 @@ export default function HomePage() {
         <div className="px-5">
           <div className="bg-card flex items-center gap-3 rounded-2xl p-4">
             <span className="bg-accent flex size-12 shrink-0 items-center justify-center rounded-full">
-              <Sparkles className="size-6 text-white" aria-hidden />
+              <Sparkles className="text-accent-foreground size-6" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-white">Everything unlocked</p>
-              <p className="truncate text-sm text-white/60">
+              <p className="font-semibold text-foreground">Everything unlocked</p>
+              <p className="truncate text-sm text-muted-foreground">
                 All reciters, all background sounds — free, forever.
               </p>
             </div>
@@ -96,7 +96,7 @@ export default function HomePage() {
         {isLoading ? <CarouselSkeleton /> : null}
 
         {isError ? (
-          <p className="px-5 text-sm text-white/50">
+          <p className="px-5 text-sm text-muted-foreground">
             Could not load the reciter catalogue. Check your connection and pull
             to refresh.
           </p>
@@ -154,8 +154,8 @@ function ContinueListening({
       </Avatar>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-white/60">Recently played</p>
-        <p className="truncate text-xl font-bold text-white">{name}</p>
+        <p className="text-sm text-muted-foreground">Recently played</p>
+        <p className="truncate text-xl font-bold text-foreground">{name}</p>
 
         <button
           type="button"
@@ -163,7 +163,7 @@ function ContinueListening({
           onClick={() => {
             if (track !== null) void playTrack(track, tracks);
           }}
-          className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 font-semibold text-black disabled:opacity-50"
+          className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 font-semibold disabled:opacity-50"
         >
           <Play className="size-4 fill-current" aria-hidden />
           Continue listening
@@ -176,12 +176,12 @@ function ContinueListening({
 function CarouselSkeleton() {
   return (
     <div className="space-y-3 px-5">
-      <Skeleton className="h-7 w-40 bg-white/10" />
+      <Skeleton className="h-7 w-40 bg-muted" />
       <div className="flex gap-4">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="flex w-28 shrink-0 flex-col items-center gap-2">
-            <Skeleton className="size-28 rounded-full bg-white/10" />
-            <Skeleton className="h-4 w-20 bg-white/10" />
+            <Skeleton className="size-28 rounded-full bg-muted" />
+            <Skeleton className="h-4 w-20 bg-muted" />
           </div>
         ))}
       </div>

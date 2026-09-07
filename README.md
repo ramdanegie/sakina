@@ -98,11 +98,30 @@ the app is fully functional straight after install.
 player with a landscape per background sound, dual-channel volume mixer, 14
 synthesised ambient beds, queue with reorder, sleep timer, playback speed,
 shuffle/repeat, AirPlay/Cast where the platform supports it, insights with
-streaks and daily goal, curated playlists, global search, settings, credits,
-installable PWA with an offline service worker.
+streaks and daily goal, curated playlists, global search, light/dark/system
+theme, six app-icon variants, QRIS donation sheet, credits, installable PWA
+with an offline service worker.
 
-**Not done** — Quran text/lyrics panel, account sync, i18n wiring (strings are
-currently inline English).
+**Not done** — Quran text/lyrics panel, account sync, i18n wiring (the language
+setting persists but strings are still inline English).
+
+## Search
+
+Transliterated Arabic is written a dozen ways and nobody types the
+punctuation, so queries are matched against a normalised form: lowercased,
+diacritics and Arabic vowel marks stripped, apostrophes and hyphens removed.
+"Al mulk", "al-mulk" and "almulk" all find **Al-Mulk**. Reciter search also
+matches terms in any order, so "husary warsh" finds the Warsh recording.
+
+## App icon
+
+Six variants, picked in Settings. iOS and Android copy the icon at install
+time and never re-read it, so the choice applies to the *next* install —
+changing an icon already on a home screen means removing and re-adding the
+app. Settings says so rather than leaving it a mystery.
+
+To use your own artwork, replace `public/icon.svg` and run
+`node scripts/make-icons.mjs`.
 
 ## Deploying
 

@@ -37,7 +37,7 @@ export function DownloadButton({ track }: { track: TrackDto }) {
       }
       className={cn(
         "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors",
-        downloaded ? "text-success" : "text-white/45",
+        downloaded ? "text-success" : "text-muted-foreground/70",
       )}
     >
       {isDownloading ? (

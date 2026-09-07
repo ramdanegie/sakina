@@ -49,12 +49,56 @@
 }
 
 /*
- * Dark is the product default, not an option: the reference UI is a calm,
- * night-time listening surface. Background is pure black so OLED phones —
- * the primary target — draw no power on the large empty areas of the
- * player screen.
+ * Light theme.
+ *
+ * Dark is the product *default* — the reference UI is a night-time listening
+ * surface — but not the only option, so both palettes are real. The two share
+ * the same earth-tone accents; only the surfaces invert.
  */
-:root,
+:root {
+  --background: oklch(0.99 0.002 90);
+  --foreground: oklch(0.2 0.008 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.008 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.008 60);
+  /* Pills invert: dark chip, light label. */
+  --primary: oklch(0.24 0.01 60);
+  --primary-foreground: oklch(0.99 0.002 90);
+  --secondary: oklch(0.95 0.005 80);
+  --secondary-foreground: oklch(0.24 0.01 60);
+  --muted: oklch(0.94 0.005 80);
+  --muted-foreground: oklch(0.48 0.012 60);
+  /* Darker than the dark-theme accent so it still clears AA on white. */
+  --accent: oklch(0.52 0.1 248);
+  --accent-foreground: oklch(0.99 0.002 90);
+  --destructive: oklch(0.55 0.19 25);
+  --success: oklch(0.5 0.07 145);
+  --border: oklch(0.2 0.01 60 / 12%);
+  --input: oklch(0.2 0.01 60 / 16%);
+  --ring: oklch(0.52 0.1 248);
+  --chart-1: oklch(0.52 0.1 248);
+  --chart-2: oklch(0.5 0.07 145);
+  --chart-3: oklch(0.48 0.012 60);
+  --chart-4: oklch(0.68 0.008 70);
+  --chart-5: oklch(0.85 0.005 80);
+  --radius: 0.75rem;
+  --header-gradient-from: oklch(0.93 0.012 240);
+  --header-gradient-to: oklch(0.99 0.002 90);
+  --sidebar: oklch(0.97 0.004 85);
+  --sidebar-foreground: oklch(0.2 0.008 60);
+  --sidebar-primary: oklch(0.52 0.1 248);
+  --sidebar-primary-foreground: oklch(0.99 0.002 90);
+  --sidebar-accent: oklch(0.94 0.005 80);
+  --sidebar-accent-foreground: oklch(0.24 0.01 60);
+  --sidebar-border: oklch(0.2 0.01 60 / 12%);
+  --sidebar-ring: oklch(0.52 0.1 248);
+}
+
+/*
+ * Dark theme — the default. Background is pure black so OLED phones, the
+ * primary target, draw no power across the large empty areas of the player.
+ */
 .dark {
   --background: oklch(0 0 0); /* #000000 */
   --foreground: oklch(0.985 0 0);
@@ -178,9 +222,22 @@
 }
 
 @layer components {
-  /* Glass surfaces: mini player, bottom nav, in-player panels. */
+  /*
+   * Glass surfaces: mini player, bottom nav, in-player panels.
+   *
+   * A white tint only reads as glass against a dark page. In light mode the
+   * tint has to invert to a dark one, or the surface disappears into the
+   * background it is supposed to float above.
+   */
   .glass {
-    @apply border border-white/10 bg-white/8 backdrop-blur-xl;
+    @apply border backdrop-blur-xl;
+    background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+    border-color: color-mix(in oklch, var(--foreground) 12%, transparent);
+  }
+
+  .dark .glass {
+    background-color: color-mix(in oklch, white 8%, transparent);
+    border-color: color-mix(in oklch, white 10%, transparent);
   }
 
   .screen-header {

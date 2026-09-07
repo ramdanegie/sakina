@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Sakina">
+  <title>Sakina</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#c2a05e" />
+      <stop offset="55%" stop-color="#8c7038" />
+      <stop offset="100%" stop-color="#3a2d13" />
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffaec" />
+      <stop offset="100%" stop-color="#f2e2b8" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)" />
+
+  <g fill="none" stroke="url(#mark)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 146 372 L 146 250 Q 146 140 256 140 Q 366 140 366 250 L 366 372" stroke-width="20" opacity="0.42" />
+    <path d="M 182 372 L 182 264 Q 182 178 256 178 Q 330 178 330 264 L 330 372" stroke-width="20" opacity="0.7" />
+    <path d="M 218 372 L 218 278 Q 218 216 256 216 Q 294 216 294 278 L 294 372" stroke-width="20" opacity="1" />
+  </g>
+
+  <circle cx="256" cy="352" r="21" fill="url(#mark)" />
+</svg>

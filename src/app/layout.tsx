@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/presentation/components/app-shell";
 import { ServiceWorkerRegistrar } from "@/presentation/components/service-worker";
 import { QueryProvider } from "@/presentation/components/query-provider";
+import { ThemeProvider } from "@/presentation/components/theme-provider";
 
 /**
  * Ubuntu is not a variable font, so the weights actually used are declared
@@ -58,7 +59,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  // Two entries so the OS chrome (status bar, task switcher) follows the
+  // active theme instead of staying black behind a light UI.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fcfcfb" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -70,14 +76,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="id"
-      className={`dark ${ubuntuSans.variable} ${ubuntuMono.variable} ${amiri.variable} h-full antialiased`}
+      className={`${ubuntuSans.variable} ${ubuntuMono.variable} ${amiri.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="bg-background flex min-h-full flex-col">
-        <QueryProvider>
-          <AppShell>{children}</AppShell>
-          <ServiceWorkerRegistrar />
-        </QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            <AppShell>{children}</AppShell>
+            <ServiceWorkerRegistrar />
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

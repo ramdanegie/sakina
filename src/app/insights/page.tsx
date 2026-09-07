@@ -26,7 +26,7 @@ export default function InsightsPage() {
   return (
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-6">
-        <h1 className="text-4xl font-bold text-white">Insights</h1>
+        <h1 className="text-4xl font-bold text-foreground">Insights</h1>
       </header>
 
       <div className="space-y-6 px-5">
@@ -34,8 +34,8 @@ export default function InsightsPage() {
 
         <section className="bg-card space-y-4 rounded-2xl p-4">
           <div>
-            <h2 className="font-semibold text-white">Daily goal</h2>
-            <p className="text-sm text-white/50">
+            <h2 className="font-semibold text-foreground">Daily goal</h2>
+            <p className="text-sm text-muted-foreground">
               A day counts toward your streak once you pass this.
             </p>
           </div>
@@ -46,12 +46,12 @@ export default function InsightsPage() {
               onClick={() => void adjustGoal(-5)}
               disabled={saving || goalMinutes <= 1}
               aria-label="Decrease daily goal by 5 minutes"
-              className="flex size-12 items-center justify-center rounded-full bg-white/10 text-white disabled:opacity-40"
+              className="flex size-12 items-center justify-center rounded-full bg-muted text-foreground disabled:opacity-40"
             >
               <Minus className="size-5" aria-hidden />
             </button>
 
-            <span className="tabular text-3xl font-bold text-white">
+            <span className="tabular text-3xl font-bold text-foreground">
               {goalMinutes} min
             </span>
 
@@ -60,7 +60,7 @@ export default function InsightsPage() {
               onClick={() => void adjustGoal(5)}
               disabled={saving || goalMinutes >= 600}
               aria-label="Increase daily goal by 5 minutes"
-              className="flex size-12 items-center justify-center rounded-full bg-white/10 text-white disabled:opacity-40"
+              className="flex size-12 items-center justify-center rounded-full bg-muted text-foreground disabled:opacity-40"
             >
               <Plus className="size-5" aria-hidden />
             </button>
@@ -69,7 +69,7 @@ export default function InsightsPage() {
 
         {data !== undefined ? (
           <section className="bg-card space-y-3 rounded-2xl p-4">
-            <h2 className="font-semibold text-white">All time</h2>
+            <h2 className="font-semibold text-foreground">All time</h2>
             <dl className="space-y-2 text-sm">
               <Row
                 label="Total listening"
@@ -91,8 +91,8 @@ export default function InsightsPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <dt className="text-white/60">{label}</dt>
-      <dd className="tabular font-medium text-white">{value}</dd>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="tabular font-medium text-foreground">{value}</dd>
     </div>
   );
 }

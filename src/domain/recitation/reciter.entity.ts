@@ -1,4 +1,5 @@
 import { AggregateRoot } from "../shared/entity";
+import { matchesAllTerms } from "../shared/text-match";
 import { Err, Ok, DomainError, type Result } from "../shared/result";
 import {
   AudioUrl,
@@ -145,13 +146,18 @@ export class Reciter extends AggregateRoot<string> {
     );
   }
 
+  /**
+   * Loose match on name and slug.
+   *
+   * Punctuation-insensitive ("as sudais" finds "Abdurrahman As-Sudais"), and
+   * every term has to appear somewhere but not in order — so "husary warsh"
+   * finds the Warsh recording by Al-Husary.
+   */
   matches(query: string): boolean {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (q.length === 0) return true;
-    return (
-      this.props.nameLatin.toLowerCase().includes(q) ||
-      this.props.nameArabic.includes(q) ||
-      this.props.slug.includes(q)
-    );
+
+    const haystack = `${this.props.nameLatin} ${this.props.nameArabic} ${this.props.slug} ${this.props.rewaya}`;
+    return matchesAllTerms(haystack, q);
   }
 }

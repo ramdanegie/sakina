@@ -1,4 +1,5 @@
 import { Entity } from "../shared/entity";
+import { matchesQuery } from "../shared/text-match";
 import { SurahNumber } from "./value-objects";
 
 export type RevelationPlace = "meccan" | "medinan";
@@ -54,15 +55,22 @@ export class Surah extends Entity<number> {
     return `${this.props.number.value}. ${this.props.nameLatin} (${this.props.nameArabic})`;
   }
 
-  /** Case-insensitive match across number, latin, arabic and translation. */
+  /**
+   * Loose match across number, latin name, Arabic name and translation.
+   *
+   * Punctuation-insensitive, so "Al mulk", "al-mulk" and "almulk" all find
+   * Al-Mulk — nobody types the hyphen, and on a phone keyboard it is two taps
+   * away.
+   */
   matches(query: string): boolean {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (q.length === 0) return true;
     if (String(this.props.number.value) === q) return true;
+
     return (
-      this.props.nameLatin.toLowerCase().includes(q) ||
-      this.props.nameArabic.includes(q) ||
-      this.props.nameTranslation.toLowerCase().includes(q)
+      matchesQuery(this.props.nameLatin, q) ||
+      matchesQuery(this.props.nameArabic, q) ||
+      matchesQuery(this.props.nameTranslation, q)
     );
   }
 }

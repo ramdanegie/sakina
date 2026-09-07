@@ -11,6 +11,7 @@ import {
   byPopularity,
   dedupeByPerson,
 } from "@/presentation/lib/reciter-grouping";
+import { reciterMatches } from "@/presentation/lib/search";
 import type { ReciterDto } from "@/application/dto";
 
 export default function RecitersPage() {
@@ -19,14 +20,9 @@ export default function RecitersPage() {
 
   const filtered = useMemo(() => {
     const all = data ?? [];
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (q.length === 0) return null;
-    return all.filter(
-      (r) =>
-        r.nameLatin.toLowerCase().includes(q) ||
-        r.nameArabic.includes(q) ||
-        r.slug.includes(q),
-    );
+    return all.filter((r) => reciterMatches(r, q));
   }, [data, query]);
 
   const groups = useMemo(() => {
@@ -57,11 +53,11 @@ export default function RecitersPage() {
   return (
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-4">
-        <h1 className="mb-4 text-4xl font-bold text-white">Reciters</h1>
+        <h1 className="mb-4 text-4xl font-bold text-foreground">Reciters</h1>
 
         <div className="relative">
           <Search
-            className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-white/40"
+            className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70"
             aria-hidden
           />
           <Input
@@ -69,7 +65,7 @@ export default function RecitersPage() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search reciters"
             aria-label="Search reciters"
-            className="h-12 rounded-full border-white/15 bg-white/10 ps-11 text-white placeholder:text-white/40"
+            className="h-12 rounded-full border-border bg-muted ps-11 text-foreground placeholder:text-muted-foreground/70"
           />
         </div>
       </header>
@@ -77,20 +73,20 @@ export default function RecitersPage() {
       {isLoading ? (
         <div className="space-y-4 px-5 pt-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={i} className="h-28 w-full bg-white/10" />
+            <Skeleton key={i} className="h-28 w-full bg-muted" />
           ))}
         </div>
       ) : null}
 
       {isError ? (
-        <p className="px-5 pt-6 text-sm text-white/50">
+        <p className="px-5 pt-6 text-sm text-muted-foreground">
           Could not load reciters. Check your connection.
         </p>
       ) : null}
 
       {filtered !== null ? (
         <div className="px-5 pt-6">
-          <p className="mb-4 text-sm text-white/50">
+          <p className="mb-4 text-sm text-muted-foreground">
             {filtered.length} result{filtered.length === 1 ? "" : "s"}
           </p>
           <div className="grid grid-cols-3 gap-x-2 gap-y-6">

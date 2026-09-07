@@ -16,7 +16,7 @@ export default function PlaylistsPage() {
   return (
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-6">
-        <h1 className="text-4xl font-bold text-white">Playlists</h1>
+        <h1 className="text-4xl font-bold text-foreground">Playlists</h1>
       </header>
 
       <div className="grid grid-cols-2 gap-3 px-5">
@@ -72,12 +72,12 @@ export default function PlaylistsPage() {
 
             {playlist.id === "favourites" ? (
               <Star
-                className="absolute inset-0 m-auto size-20 fill-white text-white drop-shadow-lg"
+                className="absolute inset-0 m-auto size-20 fill-white text-foreground drop-shadow-lg"
                 aria-hidden
               />
             ) : null}
 
-            <span className="relative text-lg leading-tight font-bold text-white">
+            <span className="relative text-lg leading-tight font-bold text-foreground">
               {playlist.name}
             </span>
           </Link>

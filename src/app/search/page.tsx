@@ -2,14 +2,20 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search as SearchIcon } from "lucide-react";
+import { Play, Search as SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useReciters, useSurahs } from "@/presentation/hooks/use-catalog";
 import { AMBIENT_SOUND_DTOS } from "@/presentation/lib/ambient-list";
 import { SYSTEM_PLAYLISTS } from "@/presentation/lib/system-playlists";
 import { AmbientIcon } from "@/presentation/components/player/ambient-icon";
+import {
+  nameMatches,
+  reciterMatches,
+  surahMatches,
+} from "@/presentation/lib/search";
 import { usePlayerStore } from "@/presentation/stores/player.store";
+import { usePlaySurah } from "@/presentation/hooks/use-play-surah";
 import { gradientFor, initialsOf } from "@/presentation/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +29,12 @@ import { cn } from "@/lib/utils";
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const deferred = useDeferredValue(query);
-  const trimmed = deferred.trim().toLowerCase();
+  const trimmed = deferred.trim();
 
   const { data: reciters } = useReciters();
   const surahs = useSurahs();
   const selectAmbient = usePlayerStore((s) => s.selectAmbient);
+  const playSurah = usePlaySurah();
 
   const results = useMemo(() => {
     if (trimmed.length === 0) {
@@ -36,27 +43,11 @@ export default function SearchPage() {
 
     return {
       reciters: (reciters ?? [])
-        .filter(
-          (r) =>
-            r.nameLatin.toLowerCase().includes(trimmed) ||
-            r.nameArabic.includes(trimmed),
-        )
+        .filter((r) => reciterMatches(r, trimmed))
         .slice(0, 8),
-      surahs: surahs
-        .filter(
-          (s) =>
-            String(s.number) === trimmed ||
-            s.nameLatin.toLowerCase().includes(trimmed) ||
-            s.nameArabic.includes(trimmed) ||
-            s.nameTranslation.toLowerCase().includes(trimmed),
-        )
-        .slice(0, 8),
-      playlists: SYSTEM_PLAYLISTS.filter((p) =>
-        p.name.toLowerCase().includes(trimmed),
-      ),
-      ambient: AMBIENT_SOUND_DTOS.filter((a) =>
-        a.name.toLowerCase().includes(trimmed),
-      ),
+      surahs: surahs.filter((s) => surahMatches(s, trimmed)).slice(0, 8),
+      playlists: SYSTEM_PLAYLISTS.filter((p) => nameMatches(p.name, trimmed)),
+      ambient: AMBIENT_SOUND_DTOS.filter((a) => nameMatches(a.name, trimmed)),
     };
   }, [trimmed, reciters, surahs]);
 
@@ -70,11 +61,11 @@ export default function SearchPage() {
   return (
     <div className="pb-6">
       <header className="screen-header safe-top px-5 pt-4 pb-4">
-        <h1 className="mb-4 text-4xl font-bold text-white">Search</h1>
+        <h1 className="mb-4 text-4xl font-bold text-foreground">Search</h1>
 
         <div className="relative">
           <SearchIcon
-            className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-white/40"
+            className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70"
             aria-hidden
           />
           <Input
@@ -83,20 +74,20 @@ export default function SearchPage() {
             placeholder="Reciters, surahs, sounds…"
             aria-label="Search"
             autoFocus
-            className="h-12 rounded-full border-white/15 bg-white/10 ps-11 text-white placeholder:text-white/40"
+            className="h-12 rounded-full border-border bg-muted ps-11 text-foreground placeholder:text-muted-foreground/70"
           />
         </div>
       </header>
 
       <div className="space-y-8 px-5 pt-4">
         {trimmed.length === 0 ? (
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-muted-foreground/70">
             Search by reciter name, surah name or number, or a background sound.
           </p>
         ) : null}
 
         {isEmpty ? (
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-muted-foreground">
             Nothing matched &ldquo;{query}&rdquo;.
           </p>
         ) : null}
@@ -122,10 +113,10 @@ export default function SearchPage() {
                       </AvatarFallback>
                     </Avatar>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-white">
+                      <span className="block truncate text-foreground">
                         {reciter.nameLatin}
                       </span>
-                      <span className="block truncate text-sm text-white/50">
+                      <span className="block truncate text-sm text-muted-foreground">
                         {reciter.surahCount} surahs
                       </span>
                     </span>
@@ -140,24 +131,32 @@ export default function SearchPage() {
           <Section title="Surahs">
             <ul className="space-y-1">
               {results.surahs.map((surah) => (
-                <li
-                  key={surah.number}
-                  className="flex min-h-14 items-center gap-3 px-1"
-                >
-                  <span className="tabular flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm text-white/70">
-                    {surah.number}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-white">
-                      {surah.nameLatin}
-                      <span className="font-arabic ms-2 text-white/60">
-                        {surah.nameArabic}
+                <li key={surah.number}>
+                  <button
+                    type="button"
+                    onClick={() => void playSurah(surah.number)}
+                    aria-label={`Play ${surah.nameLatin}`}
+                    className="flex min-h-14 w-full items-center gap-3 rounded-xl px-1 text-start"
+                  >
+                    <span className="tabular bg-muted text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-lg text-sm">
+                      {surah.number}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-foreground block truncate">
+                        {surah.nameLatin}
+                        <span className="font-arabic text-muted-foreground ms-2">
+                          {surah.nameArabic}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground block truncate text-sm">
+                        {surah.nameTranslation}
                       </span>
                     </span>
-                    <span className="block truncate text-sm text-white/50">
-                      {surah.nameTranslation}
-                    </span>
-                  </span>
+                    <Play
+                      className="text-muted-foreground/60 size-4 shrink-0 fill-current"
+                      aria-hidden
+                    />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -180,7 +179,7 @@ export default function SearchPage() {
                       )}
                       aria-hidden
                     />
-                    <span className="truncate text-white">{playlist.name}</span>
+                    <span className="truncate text-foreground">{playlist.name}</span>
                   </Link>
                 </li>
               ))}
@@ -198,13 +197,13 @@ export default function SearchPage() {
                     onClick={() => void selectAmbient(sound)}
                     className="flex min-h-14 w-full items-center gap-3 px-1 text-start"
                   >
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted">
                       <AmbientIcon
                         name={sound.icon}
-                        className="size-5 text-white"
+                        className="size-5 text-foreground"
                       />
                     </span>
-                    <span className="truncate text-white">{sound.name}</span>
+                    <span className="truncate text-foreground">{sound.name}</span>
                   </button>
                 </li>
               ))}
@@ -225,7 +224,7 @@ function Section({
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-lg font-bold text-white">{title}</h2>
+      <h2 className="text-lg font-bold text-foreground">{title}</h2>
       {children}
     </section>
   );

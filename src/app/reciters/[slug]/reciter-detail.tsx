@@ -28,9 +28,9 @@ export function ReciterDetail({ slug }: { slug: string }) {
   if (isLoading) {
     return (
       <div className="space-y-4 p-5">
-        <Skeleton className="size-32 rounded-full bg-white/10" />
-        <Skeleton className="h-8 w-48 bg-white/10" />
-        <Skeleton className="h-64 w-full bg-white/10" />
+        <Skeleton className="size-32 rounded-full bg-muted" />
+        <Skeleton className="h-8 w-48 bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -38,7 +38,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
   if (reciter == null) {
     return (
       <div className="p-5 pt-16 text-center">
-        <p className="text-white/60">Reciter not found.</p>
+        <p className="text-muted-foreground">Reciter not found.</p>
         <Link href="/reciters" className="text-accent mt-3 inline-block text-sm">
           Back to reciters
         </Link>
@@ -54,7 +54,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
         <Link
           href="/reciters"
           aria-label="Back"
-          className="glass mb-4 flex size-11 items-center justify-center rounded-full text-white"
+          className="glass mb-4 flex size-11 items-center justify-center rounded-full text-foreground"
         >
           <ChevronLeft className="size-5 flip-rtl" aria-hidden />
         </Link>
@@ -73,13 +73,13 @@ export function ReciterDetail({ slug }: { slug: string }) {
           </Avatar>
 
           <div>
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-foreground">
               {reciter.nameLatin}
             </h1>
-            <p className="font-arabic text-lg text-white/70">
+            <p className="font-arabic text-lg text-muted-foreground">
               {reciter.nameArabic}
             </p>
-            <p className="mt-1 text-sm text-white/50">
+            <p className="mt-1 text-sm text-muted-foreground">
               {countryNameOf(reciter.countryCode)} ·{" "}
               {rewayaLabel(reciter.rewaya)} · {reciter.surahCount} surahs
             </p>
@@ -90,7 +90,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
               type="button"
               disabled={list.length === 0}
               onClick={() => void playTrack(list[0], list)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-6 font-semibold text-black disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 font-semibold disabled:opacity-50"
             >
               <Play className="size-4 fill-current" aria-hidden />
               Play all
@@ -104,7 +104,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
                 void playTrack(random, list);
                 toggleShuffle();
               }}
-              className="glass inline-flex min-h-11 items-center gap-2 rounded-full px-6 font-semibold text-white disabled:opacity-50"
+              className="glass inline-flex min-h-11 items-center gap-2 rounded-full px-6 font-semibold text-foreground disabled:opacity-50"
             >
               <Shuffle className="size-4" aria-hidden />
               Shuffle
@@ -121,7 +121,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
               key={track.id}
               className={cn(
                 "flex items-center gap-1 rounded-xl",
-                active && "bg-white/5",
+                active && "bg-muted/50",
               )}
             >
               <button
@@ -132,20 +132,20 @@ export function ReciterDetail({ slug }: { slug: string }) {
                 <span
                   className={cn(
                     "tabular flex size-11 shrink-0 items-center justify-center rounded-lg text-sm",
-                    active ? "bg-white text-black" : "bg-white/10 text-white/70",
+                    active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                   )}
                 >
                   {track.surahNumber}
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-white">
+                  <span className="block truncate font-medium text-foreground">
                     {track.surahNameLatin}
-                    <span className="font-arabic ms-2 text-white/60">
+                    <span className="font-arabic ms-2 text-muted-foreground">
                       {track.surahNameArabic}
                     </span>
                   </span>
-                  <span className="block truncate text-sm text-white/50">
+                  <span className="block truncate text-sm text-muted-foreground">
                     {track.surahNameTranslation}
                   </span>
                 </span>
@@ -158,7 +158,7 @@ export function ReciterDetail({ slug }: { slug: string }) {
       </ul>
 
       {list.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-white/50">
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">
           No recordings available for this reciter.
         </p>
       ) : null}

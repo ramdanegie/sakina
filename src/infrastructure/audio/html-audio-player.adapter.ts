@@ -27,6 +27,13 @@ export class HtmlAudioPlayerAdapter implements AudioPlayerPort {
     this.element.crossOrigin = null;
   }
 
+  /**
+   * Synchronous in practice, even though the port types it as async: setting
+   * `src` and calling `load()` do not wait on anything. Keeping it free of
+   * internal awaits matters because callers `await` this immediately before
+   * `play()`, and any real async work here would spend the user gesture that
+   * playback depends on.
+   */
   async load(source: AudioTrackSource): Promise<void> {
     this.cancelFade();
     if (this.element.src !== source.url) {
@@ -35,10 +42,26 @@ export class HtmlAudioPlayerAdapter implements AudioPlayerPort {
     }
   }
 
+  /**
+   * Order matters here, and getting it wrong is subtle.
+   *
+   * `element.play()` has to be *invoked* synchronously inside the user
+   * gesture that triggered it. Awaiting anything first — including the
+   * AudioContext resume — defers the call to a later tick, by which point
+   * Chrome and Safari consider the gesture spent and reject playback. The
+   * symptom is a track that loads, shows its metadata, and silently never
+   * starts.
+   *
+   * So the element is started first, and the AudioContext (which only the
+   * ambient channel needs) is unlocked immediately afterwards.
+   */
   async play(): Promise<void> {
-    await unlockAudioContext();
+    const started = this.element.play();
+
+    void unlockAudioContext();
+
     try {
-      await this.element.play();
+      await started;
     } catch (error) {
       // Autoplay rejection is expected outside a gesture; surface it upward.
       throw error instanceof Error ? error : new Error("Playback failed");

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "sage",
+    "name": "Sage",
+    "accent": "#6d8172"
+  },
+  {
+    "id": "terracotta",
+    "name": "Terracotta",
+    "accent": "#b08268"
+  },
+  {
+    "id": "midnight",
+    "name": "Midnight",
+    "accent": "#2c3a5c"
+  },
+  {
+    "id": "maroon",
+    "name": "Maroon",
+    "accent": "#8a5560"
+  },
+  {
+    "id": "ochre",
+    "name": "Ochre",
+    "accent": "#c2a05e"
+  },
+  {
+    "id": "ink",
+    "name": "Ink",
+    "accent": "#3a3a3a"
+  }
+]

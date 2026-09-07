@@ -20,17 +20,17 @@ export default function CreditsPage() {
         <Link
           href="/settings"
           aria-label="Back"
-          className="glass mb-4 flex size-11 items-center justify-center rounded-full text-white"
+          className="glass mb-4 flex size-11 items-center justify-center rounded-full text-foreground"
         >
           <ChevronLeft className="size-5 flip-rtl" aria-hidden />
         </Link>
-        <h1 className="text-3xl font-bold text-white">Credits & licences</h1>
+        <h1 className="text-3xl font-bold text-foreground">Credits & licences</h1>
       </header>
 
       <div className="space-y-6 px-5">
         <section className="bg-card space-y-3 rounded-2xl p-4">
-          <h2 className="font-semibold text-white">Recitation audio</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="font-semibold text-foreground">Recitation audio</h2>
+          <p className="text-sm text-muted-foreground">
             Recitations are streamed directly from their original public CDNs.
             This app does not re-host or redistribute any recitation audio.
           </p>
@@ -54,15 +54,15 @@ export default function CreditsPage() {
         </section>
 
         <section className="bg-card space-y-3 rounded-2xl p-4">
-          <h2 className="font-semibold text-white">Background sounds</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="font-semibold text-foreground">Background sounds</h2>
+          <p className="text-sm text-muted-foreground">
             No audio files are shipped or downloaded. Every background sound is
             generated live in your browser from noise and filters, so it never
             repeats and works offline.
           </p>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
             {sounds.map((sound) => (
-              <li key={sound.id} className="text-white/80">
+              <li key={sound.id} className="text-foreground/80">
                 {sound.name}
               </li>
             ))}
@@ -70,8 +70,8 @@ export default function CreditsPage() {
         </section>
 
         <section className="bg-card space-y-3 rounded-2xl p-4">
-          <h2 className="font-semibold text-white">Player backdrops</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="font-semibold text-foreground">Player backdrops</h2>
+          <p className="text-sm text-muted-foreground">
             Each background sound has its own landscape. All photography is
             public domain or CC0 from Wikimedia Commons — no attribution is
             required, but the photographers are listed here anyway.
@@ -80,10 +80,10 @@ export default function CreditsPage() {
             {SCENERY_CREDIT_ENTRIES.map(([id, credit]) => (
               <li key={id} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block truncate text-white capitalize">
+                  <span className="block truncate text-foreground capitalize">
                     {id.replace(/-/g, " ")}
                   </span>
-                  <span className="block truncate text-xs text-white/50">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {credit.author} · {credit.licence}
                   </span>
                 </span>
@@ -101,7 +101,7 @@ export default function CreditsPage() {
         </section>
 
         <section className="bg-card space-y-3 rounded-2xl p-4">
-          <h2 className="font-semibold text-white">Typefaces</h2>
+          <h2 className="font-semibold text-foreground">Typefaces</h2>
           <ul className="space-y-2 text-sm">
             <Source
               name="Amiri"
@@ -140,7 +140,7 @@ function Source({
         >
           {name}
         </a>
-        <span className="block truncate text-xs text-white/50">{note}</span>
+        <span className="block truncate text-xs text-muted-foreground">{note}</span>
       </span>
     </li>
   );

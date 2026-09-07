@@ -36,17 +36,22 @@ export function ReciterCard({
           </AvatarFallback>
         </Avatar>
 
-        {/* The catalogue only exposes a last-modified date, so this claims
-            "updated" rather than "new" — many of these are classical
-            recordings that were simply re-encoded. */}
+        {/*
+          The catalogue only exposes a last-modified date, so this claims
+          "updated" rather than "new" — many of these are classical recordings
+          that were simply re-encoded.
+
+          Fixed colours rather than theme tokens: the badge always sits on a
+          dark earth-tone avatar, so it needs the same contrast in both themes.
+        */}
         {showNewBadge && reciter.isNew ? (
-          <span className="bg-success absolute -end-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-black">
+          <span className="bg-sage-500 absolute -end-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-black">
             UPDATED
           </span>
         ) : null}
       </div>
 
-      <span className="line-clamp-2 text-center text-sm leading-tight text-white">
+      <span className="line-clamp-2 text-center text-sm leading-tight text-foreground">
         {reciter.nameLatin}
       </span>
     </Link>
@@ -72,7 +77,7 @@ export function ReciterRow({
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-5">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
           {icon}
           {title}
         </h2>

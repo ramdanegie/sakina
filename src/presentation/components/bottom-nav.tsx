@@ -32,7 +32,7 @@ export function BottomNav() {
               // 44px minimum touch target, per the accessibility constraint.
               className={cn(
                 "flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 rounded-full px-3 py-1.5 transition-colors",
-                active ? "bg-white/15 text-white" : "text-white/60",
+                active ? "bg-muted text-foreground" : "text-muted-foreground",
               )}
             >
               <Icon className="size-5" aria-hidden />
@@ -47,7 +47,7 @@ export function BottomNav() {
       <Link
         href="/search"
         aria-label="Search"
-        className="glass flex size-14 shrink-0 items-center justify-center rounded-full text-white"
+        className="glass flex size-14 shrink-0 items-center justify-center rounded-full text-foreground"
       >
         <Search className="size-5" aria-hidden />
       </Link>

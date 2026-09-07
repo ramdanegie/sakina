@@ -42,19 +42,19 @@ export function MiniPlayer() {
         >
           <Avatar className="size-10 shrink-0">
             <AvatarImage src={track.reciterAvatarUrl ?? undefined} alt="" />
-            <AvatarFallback className="bg-white/10 text-xs">
+            <AvatarFallback className="bg-muted text-xs">
               {initialsOf(track.reciterName)}
             </AvatarFallback>
           </Avatar>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">
+            <p className="truncate text-sm font-semibold text-foreground">
               {track.surahNumber}. {track.surahNameLatin}
-              <span className="font-arabic ms-1.5 text-white/70">
+              <span className="font-arabic ms-1.5 text-muted-foreground">
                 ({track.surahNameArabic})
               </span>
             </p>
-            <p className="truncate text-xs text-white/60">
+            <p className="truncate text-xs text-muted-foreground">
               {track.reciterName}
             </p>
           </div>
@@ -67,7 +67,7 @@ export function MiniPlayer() {
             void togglePlay();
           }}
           aria-label={isPlaying ? "Pause" : "Play"}
-          className="flex size-11 shrink-0 items-center justify-center text-white"
+          className="flex size-11 shrink-0 items-center justify-center text-foreground"
         >
           {isPlaying ? (
             <Pause className="size-5 fill-current" aria-hidden />
@@ -83,7 +83,7 @@ export function MiniPlayer() {
             void next();
           }}
           aria-label="Next surah"
-          className="flex size-11 shrink-0 items-center justify-center text-white"
+          className="flex size-11 shrink-0 items-center justify-center text-foreground"
         >
           <SkipForward className="size-5 fill-current" aria-hidden />
         </button>
