@@ -1,4 +1,4 @@
-# Quran Audio — free forever
+# Sakina
 
 A mobile-first Quran audio player: 100+ reciters, ambient background sound
 mixed underneath the recitation, listening streaks. Every feature is unlocked
@@ -10,7 +10,8 @@ Built to the spec in [`PRD.md`](./PRD.md).
 
 The app hosts no recitation audio. Reciter metadata comes from the public
 mp3quran v3 API, and audio streams straight from its origin CDN to the
-browser. Hosting cost is the static app shell plus ~10MB of ambient loops.
+browser, so bandwidth stays near zero however many people listen. The whole
+deployed site is about 13 MB.
 
 ## Stack
 
@@ -57,6 +58,10 @@ Two channels, deliberately different technologies:
 | Recitation | `HTMLAudioElement` | Streams, supports HTTP Range (seeking), needs no CORS from third-party CDNs |
 | Ambient | Web Audio synthesis (noise → filters → LFOs) | No file to download, no loop seam, no third-party licence |
 
+Each background sound also gets its own landscape: a public-domain photograph
+from Wikimedia Commons layered over a drawn vector scene, so the backdrop is
+never blank while the photo decodes or when the device is offline.
+
 Each has its own gain node, which is what the two-fader mixer controls.
 
 Ambient beds are **generated, not sampled** — rain is filtered noise, wind is a
@@ -93,10 +98,11 @@ the app is fully functional straight after install.
 player with a landscape per background sound, dual-channel volume mixer, 14
 synthesised ambient beds, queue with reorder, sleep timer, playback speed,
 shuffle/repeat, AirPlay/Cast where the platform supports it, insights with
-streaks and daily goal, curated playlists, global search, settings, credits.
+streaks and daily goal, curated playlists, global search, settings, credits,
+installable PWA with an offline service worker.
 
-**Not done** — Quran text/lyrics panel, PWA service worker, account sync, i18n
-wiring (strings are currently inline English).
+**Not done** — Quran text/lyrics panel, account sync, i18n wiring (strings are
+currently inline English).
 
 ## Deploying
 

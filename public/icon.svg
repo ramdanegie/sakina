@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Sakina">
+  <title>Sakina</title>
+
+  <!--
+    Three nested pointed arches.
+
+    The shape reads two ways at once: a mihrab niche, and sound radiating
+    outward from a source. That is the whole product in one mark — listening
+    to the Quran, and the calm around it.
+
+    Everything sits inside the centre 62% of the canvas, so the icon survives
+    the circular crop Android applies to maskable icons.
+  -->
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#6d8172" />
+      <stop offset="55%" stop-color="#465a4c" />
+      <stop offset="100%" stop-color="#26312a" />
+    </linearGradient>
+
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f2e9d6" />
+      <stop offset="100%" stop-color="#d9c7a4" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)" />
+
+  <g
+    fill="none"
+    stroke="url(#mark)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- Outermost arch: faintest, like the furthest ripple. -->
+    <path
+      d="M 146 372 L 146 250 Q 146 140 256 140 Q 366 140 366 250 L 366 372"
+      stroke-width="20"
+      opacity="0.42"
+    />
+    <path
+      d="M 182 372 L 182 264 Q 182 178 256 178 Q 330 178 330 264 L 330 372"
+      stroke-width="20"
+      opacity="0.7"
+    />
+    <path
+      d="M 218 372 L 218 278 Q 218 216 256 216 Q 294 216 294 278 L 294 372"
+      stroke-width="20"
+      opacity="1"
+    />
+  </g>
+
+  <!-- The source the arches radiate from. -->
+  <circle cx="256" cy="352" r="21" fill="url(#mark)" />
+</svg>

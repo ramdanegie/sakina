@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Ubuntu, Ubuntu_Mono, Amiri } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/presentation/components/app-shell";
+import { ServiceWorkerRegistrar } from "@/presentation/components/service-worker";
 import { QueryProvider } from "@/presentation/components/query-provider";
 
 /**
@@ -36,16 +37,24 @@ const amiri = Amiri({
 });
 
 export const metadata: Metadata = {
-  title: "Quran Audio — Free Forever",
+  title: "Sakina — Listen to the Quran, calmly",
   description:
     "Listen to the Quran from over a hundred reciters with ambient background sound. Every feature free, no ads, no subscription.",
-  applicationName: "Quran Audio",
+  applicationName: "Sakina",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Quran Audio",
+    title: "Sakina",
   },
   formatDetection: { telephone: false },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -67,6 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="bg-background flex min-h-full flex-col">
         <QueryProvider>
           <AppShell>{children}</AppShell>
+          <ServiceWorkerRegistrar />
         </QueryProvider>
       </body>
     </html>

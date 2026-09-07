@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploy script for the Quran audio player.
+# Deploy script for Sakina.
 #
 # The app builds to plain static HTML (out/index.html and friends), so it can
 # be dropped onto any web host: cPanel/DomaiNesia, Netlify, Cloudflare Pages,
@@ -31,7 +31,7 @@ BASE_PATH="${BASE_PATH:-}"
 # ─── Internals ──────────────────────────────────────────────────────────────
 
 BUILD_DIR="out"
-ARTIFACT="quran-audio-$(date +%Y%m%d-%H%M).zip"
+ARTIFACT="sakina-$(date +%Y%m%d-%H%M).zip"
 MODE="${1:---zip}"
 
 log()  { printf '\033[1;36m▸ %s\033[0m\n' "$1"; }

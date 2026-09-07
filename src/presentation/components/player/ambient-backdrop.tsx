@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { cn } from "@/lib/utils";
 import {
   birdFlock,
@@ -17,16 +19,24 @@ import {
 /**
  * The player backdrop: a calm landscape per background sound.
  *
- * These are drawn as layered SVG rather than photographs. A photo set would
- * mean either bundling megabytes of imagery or hotlinking a stock CDN — the
- * first fights the offline-first promise, the second adds a dependency that
- * can rot or start blocking hotlinks, and both drag in image licensing. Vector
- * scenes are a few kilobytes, resolution-independent, render offline, and are
- * original work.
+ * Two layers, in this order:
  *
- * Each scene is built the same way a landscape reads: sky wash, a light
+ *   1. A vector scene drawn from gradients and silhouettes, in the palette of
+ *      that bed. It is a few kilobytes and always present.
+ *   2. A real photograph on top, fading in once decoded.
+ *
+ * The vector layer is not decoration — it is the guarantee. Photographs are
+ * bundled locally rather than hotlinked so they survive offline, but they are
+ * still ~200KB each and decode asynchronously; without something underneath,
+ * opening the player on a cold cache would show a black rectangle. If a photo
+ * is missing or fails, the drawn landscape simply stays.
+ *
+ * Each vector scene is built the way a landscape reads: sky wash, a light
  * source, receding silhouette layers (haziest at the back), a foreground, and
  * finally a legibility scrim.
+ *
+ * Photography is public-domain or CC0 from Wikimedia Commons; see
+ * `scripts/fetch-scenery.mjs` and the generated `scenery-credits.json`.
  */
 
 type Element =
@@ -383,6 +393,13 @@ export function AmbientBackdrop({ ambientId }: { ambientId: string | null }) {
   const id = ambientId ?? "none";
   const scene = SCENES[id] ?? SCENES.none;
 
+  // Photography is the finish; the vector scene underneath is the guarantee.
+  // If the image is still downloading, missing, or the device is offline, the
+  // drawn landscape is already on screen in the right palette, so the player
+  // never falls back to a flat black rectangle.
+  const [photoLoaded, setPhotoLoaded] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
+
   return (
     // Remounting per scene restarts the cross-fade cleanly rather than
     // interpolating between two unrelated landscapes.
@@ -425,6 +442,27 @@ export function AmbientBackdrop({ ambientId }: { ambientId: string | null }) {
         />
         {scene.elements.map((element, i) => renderElement(element, `el-${i}`))}
       </svg>
+
+      {/*
+        A plain <img> on purpose: next/image's optimiser does not run in a
+        static export, and this is a decorative full-bleed backdrop that is
+        already downscaled and compressed at build time.
+      */}
+      {!photoFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/scenery/${id}.jpg`}
+          alt=""
+          decoding="async"
+          loading="eager"
+          onLoad={() => setPhotoLoaded(true)}
+          onError={() => setPhotoFailed(true)}
+          className={cn(
+            "absolute inset-0 size-full object-cover transition-opacity duration-700",
+            photoLoaded ? "opacity-100" : "opacity-0",
+          )}
+        />
+      ) : null}
 
       {scene.overlay !== undefined ? (
         <div

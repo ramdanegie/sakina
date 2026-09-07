@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { AMBIENT_SOUND_DTOS } from "@/presentation/lib/ambient-list";
+import { SCENERY_CREDIT_ENTRIES } from "@/presentation/lib/scenery-credits";
 
 /**
  * Public attribution page.
@@ -63,6 +64,37 @@ export default function CreditsPage() {
             {sounds.map((sound) => (
               <li key={sound.id} className="text-white/80">
                 {sound.name}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="bg-card space-y-3 rounded-2xl p-4">
+          <h2 className="font-semibold text-white">Player backdrops</h2>
+          <p className="text-sm text-white/60">
+            Each background sound has its own landscape. All photography is
+            public domain or CC0 from Wikimedia Commons — no attribution is
+            required, but the photographers are listed here anyway.
+          </p>
+          <ul className="space-y-2 text-sm">
+            {SCENERY_CREDIT_ENTRIES.map(([id, credit]) => (
+              <li key={id} className="flex items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block truncate text-white capitalize">
+                    {id.replace(/-/g, " ")}
+                  </span>
+                  <span className="block truncate text-xs text-white/50">
+                    {credit.author} · {credit.licence}
+                  </span>
+                </span>
+                <a
+                  href={credit.source}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-accent shrink-0 text-xs"
+                >
+                  Source
+                </a>
               </li>
             ))}
           </ul>

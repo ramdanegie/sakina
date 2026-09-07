@@ -27,7 +27,7 @@ export default function SettingsPage() {
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
         await navigator.share({
-          title: "Quran Audio — free forever",
+          title: "Sakina — listen to the Quran, calmly",
           text: "Listen to the Quran with ambient background sound. Every feature free.",
           url,
         });

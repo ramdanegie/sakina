@@ -91,7 +91,7 @@ paths are absolute.
 
 ```nginx
 server {
-    root /var/www/quran-audio;
+    root /var/www/sakina;
     index index.html;
 
     # Clean URLs: /reciters/name/ resolves to that folder's index.html
