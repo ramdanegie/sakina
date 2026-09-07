@@ -149,6 +149,47 @@ async function main() {
     ]);
   }
 
+  // ── Social share card ────────────────────────────────────────────────
+  //
+  // Written as a real .png in public/ rather than via Next.js's
+  // `opengraph-image` route convention. In a static export that convention
+  // emits an extensionless file, which static hosts serve with no
+  // Content-Type — and social crawlers refuse an image without `image/png`,
+  // so the share card silently renders blank.
+  const ogSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#46584c" />
+      <stop offset="55%" stop-color="#2b3830" />
+      <stop offset="100%" stop-color="#121714" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <g transform="translate(96, 185) scale(0.51)">
+    <g fill="none" stroke="#f2e9d6" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 146 372 L 146 250 Q 146 140 256 140 Q 366 140 366 250 L 366 372" opacity="0.42" />
+      <path d="M 182 372 L 182 264 Q 182 178 256 178 Q 330 178 330 264 L 330 372" opacity="0.7" />
+      <path d="M 218 372 L 218 278 Q 218 216 256 216 Q 294 216 294 278 L 294 372" />
+    </g>
+    <circle cx="256" cy="352" r="21" fill="#f2e9d6" />
+  </g>
+  <text x="430" y="268" font-family="Ubuntu, Helvetica, Arial, sans-serif" font-size="104" font-weight="700" fill="#f7f2e6">Sakina</text>
+  <text x="430" y="330" font-family="Ubuntu, Helvetica, Arial, sans-serif" font-size="40" fill="#d9c7a4">Listen to the Quran, calmly</text>
+  <text x="430" y="404" font-family="Ubuntu, Helvetica, Arial, sans-serif" font-size="26" fill="#a8b5a9">100+ reciters &#183; ambient background sound</text>
+  <text x="430" y="444" font-family="Ubuntu, Helvetica, Arial, sans-serif" font-size="26" fill="#a8b5a9">offline &#183; free forever</text>
+</svg>
+`;
+
+  const ogSource = path.join(OUT, "og.svg");
+  await writeFile(ogSource, ogSvg);
+  await run("rsvg-convert", [
+    "-w", "1200",
+    "-h", "630",
+    ogSource,
+    "-o", path.join(root, "og.png"),
+  ]);
+  console.log("\u2713 Social card \u2192 public/og.png");
+
   console.log(`\n${VARIANTS.length} variants written to public/icons/`);
 }
 

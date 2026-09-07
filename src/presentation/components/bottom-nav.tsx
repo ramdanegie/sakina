@@ -2,12 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, Search, Settings, AudioLines } from "lucide-react";
+import {
+  AudioLines,
+  BookOpen,
+  Home,
+  LayoutGrid,
+  Search,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Five tabs is the practical ceiling on a phone; Playlists moved into the
+ * Reciters screen's reach rather than crowding this row further.
+ */
 const TABS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/reciters", label: "Reciters", icon: AudioLines },
+  { href: "/surah", label: "Read", icon: BookOpen },
   { href: "/playlists", label: "Playlists", icon: LayoutGrid },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -31,7 +43,7 @@ export function BottomNav() {
               aria-current={active ? "page" : undefined}
               // 44px minimum touch target, per the accessibility constraint.
               className={cn(
-                "flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 rounded-full px-3 py-1.5 transition-colors",
+                "flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-1.5 transition-colors",
                 active ? "bg-muted text-foreground" : "text-muted-foreground",
               )}
             >

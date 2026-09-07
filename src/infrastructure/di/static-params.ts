@@ -1,4 +1,5 @@
 import { Mp3QuranClient } from "../content/mp3quran.client";
+import { SURAH_DATA, SURAH_NAME_ID } from "../content/surah-data";
 import { SYSTEM_PLAYLIST_IDS } from "../content/system-playlist-ids";
 
 /**
@@ -60,4 +61,38 @@ export async function listReciterSlugs(): Promise<string[]> {
 
 export function listPlaylistIds(): string[] {
   return [...SYSTEM_PLAYLIST_IDS];
+}
+
+/**
+ * Surah reference data for server-rendered pages.
+ *
+ * Factual catalogue metadata only — number, names, ayah count, revelation
+ * place. Translations and tafsir are deliberately absent: those are the work
+ * of named translators and scholars, so they are fetched from their publisher
+ * in the browser and credited there, never baked into this app's HTML.
+ */
+export interface SurahMeta {
+  readonly number: number;
+  readonly nameLatin: string;
+  readonly nameArabic: string;
+  readonly nameTranslation: string;
+  readonly nameIndonesian: string;
+  readonly ayahCount: number;
+  readonly revelationPlace: string;
+}
+
+export function listSurahMeta(): SurahMeta[] {
+  return SURAH_DATA.map((s) => ({
+    number: s.number,
+    nameLatin: s.nameLatin,
+    nameArabic: s.nameArabic,
+    nameTranslation: s.nameTranslation,
+    nameIndonesian: SURAH_NAME_ID[s.number] ?? s.nameTranslation,
+    ayahCount: s.ayahCount,
+    revelationPlace: s.revelationPlace,
+  }));
+}
+
+export function findSurahMeta(number: number): SurahMeta | null {
+  return listSurahMeta().find((s) => s.number === number) ?? null;
 }

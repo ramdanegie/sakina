@@ -5,6 +5,7 @@ import { AppShell } from "@/presentation/components/app-shell";
 import { ServiceWorkerRegistrar } from "@/presentation/components/service-worker";
 import { QueryProvider } from "@/presentation/components/query-provider";
 import { ThemeProvider } from "@/presentation/components/theme-provider";
+import { APP_URL } from "@/presentation/lib/app-meta";
 
 /**
  * Ubuntu is not a variable font, so the weights actually used are declared
@@ -38,7 +39,13 @@ const amiri = Amiri({
 });
 
 export const metadata: Metadata = {
-  title: "Sakina — Listen to the Quran, calmly",
+  // Required for Open Graph and canonical URLs to resolve to absolute paths.
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "Sakina — Listen to the Quran, calmly",
+    // Every child route sets only its own name; the brand is appended here.
+    template: "%s · Sakina",
+  },
   description:
     "Listen to the Quran from over a hundred reciters with ambient background sound. Every feature free, no ads, no subscription.",
   applicationName: "Sakina",
@@ -48,6 +55,35 @@ export const metadata: Metadata = {
     title: "Sakina",
   },
   formatDetection: { telephone: false },
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: APP_URL,
+    siteName: "Sakina",
+    title: "Sakina — Listen to the Quran, calmly",
+    description:
+      "Listen to the Quran from over a hundred reciters with ambient background sound. Every feature free, no ads, no subscription.",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Sakina — Listen to the Quran, calmly",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sakina — Listen to the Quran, calmly",
+    description:
+      "Over a hundred reciters, ambient background sound, offline downloads. Free, forever.",
+    images: ["/og.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
