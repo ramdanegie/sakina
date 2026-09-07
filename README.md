@@ -102,8 +102,29 @@ streaks and daily goal, curated playlists, global search, light/dark/system
 theme, six app-icon variants, QRIS donation sheet, credits, installable PWA
 with an offline service worker.
 
-**Not done** — Quran text/lyrics panel, account sync, i18n wiring (the language
-setting persists but strings are still inline English).
+**Not done** — account sync, i18n wiring (the language setting persists but UI
+strings are still inline English), CarPlay (native-only; a web app cannot
+reach it).
+
+## Reading panel and verse timings
+
+The `ق` control opens Arabic text, a translation and tafsir on demand. Arabic
+scripture belongs to no one; translations and tafsir are the work of named
+translators and scholars, so they are fetched from their publisher at read time
+and credited on screen rather than bundled here.
+
+Highlighting the ayah being recited is gated on evidence. Published timings
+describe one specific recording, and two takes of the same surah by the same
+reciter genuinely differ — measured directly, surah 112 by Alafasy runs 13.3s
+on quran.com and 21.7s on the CDN this app streams. `VerseTimeline.alignsWith`
+therefore compares the published source length against the real duration of the
+audio playing and only allows highlighting within 2%. Everywhere else the panel
+is a plain reader and says so. A highlight that drifts is worse than none: it
+tells the reader they are in the wrong place with total confidence.
+
+In practice that means sync stays dormant for the current catalogue. Enabling
+it would mean offering quran.com's own recordings as an alternate audio source
+for the reciters they have timed.
 
 ## Search
 

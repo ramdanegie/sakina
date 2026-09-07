@@ -19,6 +19,12 @@ import type {
   SurahRepository,
   UserPreferencesRepository,
 } from "@/domain/repositories";
+import type {
+  ScriptureProviderPort,
+  VerseTimingPort,
+} from "@/application/ports.scripture";
+import { AlQuranCloudClient } from "../content/alquran-cloud.client";
+import { QuranComVerseTimingClient } from "../content/verse-timing.client";
 import { CacheStorageAdapter } from "../offline/cache-storage.adapter";
 import { DexieDownloadRepository } from "../persistence/dexie-download.repository";
 
@@ -89,6 +95,8 @@ export interface Container {
   readonly listeningSessions: ListeningSessionRepository;
   readonly preferences: UserPreferencesRepository;
   readonly downloads: DownloadRepository;
+  readonly scripture: ScriptureProviderPort;
+  readonly verseTiming: VerseTimingPort;
 
   readonly buildTrack: BuildTrack;
   readonly habit: RecordListeningProgress;
@@ -123,6 +131,8 @@ export function getContainer(): Container {
   const preferences = new DexieUserPreferencesRepository();
   const downloads = new DexieDownloadRepository();
   const storage = new CacheStorageAdapter();
+  const scripture = new AlQuranCloudClient();
+  const verseTiming = new QuranComVerseTimingClient();
 
   container = {
     clock,
@@ -137,6 +147,8 @@ export function getContainer(): Container {
     preferences,
     downloads,
     storage,
+    scripture,
+    verseTiming,
     buildTrack: new BuildTrack(reciters, surahs),
     habit: new RecordListeningProgress(
       listeningSessions,

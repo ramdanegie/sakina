@@ -21,12 +21,13 @@ import { formatDuration, formatRemaining, initialsOf } from "@/presentation/lib/
 import { AmbientBackdrop } from "./ambient-backdrop";
 import { AmbientIcon } from "./ambient-icon";
 import { AmbientPicker } from "./ambient-picker";
+import { LyricsPanel } from "./lyrics-panel";
 import { VolumeMixer } from "./volume-mixer";
 import { QueuePanel } from "./queue-panel";
 import { SleepTimerSheet } from "./sleep-timer-sheet";
 import { cn } from "@/lib/utils";
 
-type Panel = "none" | "volume" | "queue" | "ambient" | "sleep";
+type Panel = "none" | "volume" | "queue" | "ambient" | "sleep" | "lyrics";
 
 export function FullPlayer() {
   const isOpen = usePlayerStore((s) => s.isPlayerOpen);
@@ -239,7 +240,8 @@ export function FullPlayer() {
 
             <button
               type="button"
-              aria-label="Quran text"
+              onClick={() => setPanel("lyrics")}
+              aria-label="Quran text and tafsir"
               className="font-arabic flex size-11 items-center justify-center text-2xl"
             >
               ق
@@ -281,6 +283,10 @@ export function FullPlayer() {
         <AmbientPicker
           open={panel === "ambient"}
           onOpenChange={(open) => setPanel(open ? "ambient" : "none")}
+        />
+        <LyricsPanel
+          open={panel === "lyrics"}
+          onOpenChange={(open) => setPanel(open ? "lyrics" : "none")}
         />
         <SleepTimerSheet
           open={panel === "sleep"}
