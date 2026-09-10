@@ -71,6 +71,10 @@ export interface AmbientMixerPort {
   stopAll(): void;
   setGain(ambientId: string, gain: number): void;
   setMasterGain(gain: number): void;
+  /** Ramp every layer to silence — used by the sleep timer's fade-out. */
+  fadeOut(seconds: number): void;
+  /** Restore the levels a fade was interrupting. */
+  cancelFade(): void;
   isPlaying(ambientId: string): boolean;
   dispose(): void;
 }

@@ -8,22 +8,34 @@
  * all. Handling ranges correctly is the whole job here, so the logic is
  * explicit and readable.
  *
- * Cache layout:
- *   sakina-shell-v1   app shell + icons, precached on install
- *   sakina-pages-v1   visited HTML, stale-while-revalidate
- *   sakina-assets-v1  hashed JS/CSS/fonts/images, cache-first
- *   quran-audio-v1    downloaded surahs, written by the app (not by this file)
+ * Versioning: the registration URL carries the build id (`/sw.js?v=…`), which
+ * makes each deploy a byte-different script the browser re-installs, and every
+ * cache name is derived from it. The previous build's caches are deleted on
+ * activate. Before this the version was hard-coded, so an installed PWA went
+ * on serving the JS and CSS it cached on its very first visit — updates simply
+ * never arrived.
+ *
+ * Cache layout (per build):
+ *   sakina-shell-<build>    app shell + icons, precached on install
+ *   sakina-pages-<build>    visited HTML, network-first
+ *   sakina-assets-<build>   hashed JS/CSS/fonts/images, cache-first
+ *   quran-audio-v1          downloaded surahs, written by the app, never purged
  */
 
-const VERSION = "v1";
-const SHELL = `sakina-shell-${VERSION}`;
-const PAGES = `sakina-pages-${VERSION}`;
-const ASSETS = `sakina-assets-${VERSION}`;
+const BUILD =
+  new URL(self.location.href).searchParams.get("v") ?? "dev";
 
-/** Written by the download feature; this worker only reads from it. */
+const PREFIX = "sakina-";
+const SHELL = `${PREFIX}shell-${BUILD}`;
+const PAGES = `${PREFIX}pages-${BUILD}`;
+const ASSETS = `${PREFIX}assets-${BUILD}`;
+
+/**
+ * Downloaded recitations are the user's own data — expensive to fetch, often
+ * on mobile data, and deliberately kept. They are keyed outside the build
+ * namespace so a deploy never throws them away.
+ */
 const AUDIO = "quran-audio-v1";
-
-const OWNED = new Set([SHELL, PAGES, ASSETS, AUDIO]);
 
 /**
  * Kept deliberately small. Route HTML is cached on first visit instead, so a
@@ -52,12 +64,44 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
+
+      // Prefix-based, so caches from *any* previous build are collected — an
+      // explicit allow-list only ever removed names we already knew about.
       await Promise.all(
-        names.filter((name) => !OWNED.has(name)).map((name) => caches.delete(name)),
+        names
+          .filter((name) => name.startsWith(PREFIX))
+          .filter((name) => ![SHELL, PAGES, ASSETS].includes(name))
+          .map((name) => caches.delete(name)),
       );
+
       await self.clients.claim();
+
+      // Tell open tabs a new build is live so they can reload themselves.
+      const clients = await self.clients.matchAll({ type: "window" });
+      for (const client of clients) {
+        client.postMessage({ type: "sw-activated", build: BUILD });
+      }
     })(),
   );
+});
+
+/** Lets the page force an update check, e.g. from pull-to-refresh. */
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "skip-waiting") void self.skipWaiting();
+
+  if (event.data?.type === "clear-pages") {
+    // Drop cached HTML so the next navigation is fetched fresh.
+    event.waitUntil(
+      (async () => {
+        const names = await caches.keys();
+        await Promise.all(
+          names
+            .filter((name) => name.startsWith(`${PREFIX}pages-`))
+            .map((name) => caches.delete(name)),
+        );
+      })(),
+    );
+  }
 });
 
 /**
@@ -109,30 +153,30 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
- * Pages: serve the cached copy immediately, refresh it in the background.
- * The user gets an instant load and the next visit gets the new build.
+ * Pages are network-first.
+ *
+ * They were stale-while-revalidate, which meant a user always saw the previous
+ * build once and only picked up the new one on a second visit. HTML is small;
+ * fetching it costs little and removes a whole class of "I deployed but it's
+ * still the old version" confusion. The cache remains as the offline answer.
  */
-async function staleWhileRevalidate(request) {
+async function networkFirst(request) {
   const cache = await caches.open(PAGES);
-  const hit = await cache.match(request);
 
-  const network = fetch(request)
-    .then((response) => {
-      if (response.ok) cache.put(request, response.clone());
-      return response;
-    })
-    .catch(() => undefined);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  } catch {
+    const hit = await cache.match(request);
+    if (hit !== undefined) return hit;
 
-  if (hit !== undefined) return hit;
-
-  const fresh = await network;
-  if (fresh !== undefined) return fresh;
-
-  // Offline and never visited: fall back to the app shell, which boots the
-  // client router and can render the route from bundled data.
-  const shell = await caches.open(SHELL);
-  const root = await shell.match("/");
-  return root ?? Response.error();
+    // Offline and never visited: fall back to the app shell, which boots the
+    // client router and can render the route from bundled data.
+    const shell = await caches.open(SHELL);
+    const root = await shell.match("/");
+    return root ?? Response.error();
+  }
 }
 
 self.addEventListener("fetch", (event) => {
@@ -159,6 +203,10 @@ self.addEventListener("fetch", (event) => {
   // Everything else we handle is same-origin.
   if (url.origin !== self.location.origin) return;
 
+  // Never cache the worker itself, or a stale copy could pin the app to an
+  // old build permanently.
+  if (url.pathname === "/sw.js") return;
+
   // Hashed build output and bundled media never change under the same name.
   if (
     url.pathname.startsWith("/_next/static/") ||
@@ -170,6 +218,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate" || request.destination === "document") {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(networkFirst(request));
   }
 });

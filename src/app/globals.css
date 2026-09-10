@@ -198,9 +198,13 @@
 
   body {
     @apply bg-background text-foreground;
-    /* Mobile-first: the app is a fixed viewport with internal scroll areas,
-       so rubber-banding the whole page would detach the fixed player. */
-    overscroll-behavior-y: none;
+    /*
+     * `contain` rather than `none`: it still stops a scroll inside the page
+     * from chaining to the browser's own pull-to-refresh, but leaves the
+     * overscroll events our own pull-to-refresh listens for. `none` cancelled
+     * them outright, so the gesture could never start.
+     */
+    overscroll-behavior-y: contain;
     -webkit-tap-highlight-color: transparent;
   }
 

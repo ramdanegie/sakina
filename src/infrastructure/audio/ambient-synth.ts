@@ -1,46 +1,60 @@
 /**
- * Procedural ambient sound.
+ * Procedural ambient beds.
  *
- * Ambient beds are synthesised from noise, filters and LFOs rather than
- * streamed from audio files. For this app that is strictly better:
+ * Each bed is a node graph plus a set of sparse events (a droplet, a chirp, a
+ * hoot). Everything is scheduled against the audio context's own clock rather
+ * than `setTimeout`, because these graphs are rendered through an
+ * OfflineAudioContext — which runs far faster than realtime, so wall-clock
+ * timers would pile every event onto the first instant.
  *
- *  - nothing to download, so a background bed starts instantly and works
- *    offline from the first launch
- *  - there is no loop point at all, so an hour-long session never develops
- *    the tell-tale 30-second seam that ruins a calm bed
- *  - no third-party audio, so no licence to track or get wrong
+ * The rendered result is looped back through an `<audio>` element; see
+ * ambient-render.ts for why that indirection exists (iOS suspends Web Audio
+ * behind the lock screen).
  *
- * Each generator returns a handle that owns its nodes and timers, so stopping
- * a layer tears down everything it created.
+ * Design rules shared by every bed:
+ *
+ *  - Nothing important lives below ~150Hz. A phone speaker cannot reproduce it
+ *    and only turns it into cone excursion, and stacking low-frequency beds
+ *    across the catalogue produced a constant rumble that masked the character
+ *    sounds it was meant to sit behind.
+ *  - The character sound is always louder than its bed.
  */
 
-export interface AmbientSourceHandle {
-  /** Node the caller connects to its own gain stage. */
-  readonly output: GainNode;
-  stop(): void;
-}
+export type BedBuilder = (
+  ctx: BaseAudioContext,
+  out: AudioNode,
+  durationSec: number,
+) => void;
 
-/** Reusable noise buffers — generating these is the expensive part. */
-const noiseCache = new Map<string, AudioBuffer>();
+/* ── helpers ─────────────────────────────────────────────────────────────── */
+
+/** Deterministic PRNG, so a given bed renders identically every time. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 type NoiseColor = "white" | "pink" | "brown";
 
-function noiseBuffer(ctx: AudioContext, color: NoiseColor): AudioBuffer {
-  const cached = noiseCache.get(color);
-  if (cached !== undefined) return cached;
-
-  // 4 seconds is long enough that the noise loop is not perceptible.
-  const length = ctx.sampleRate * 4;
+function noiseBuffer(ctx: BaseAudioContext, color: NoiseColor): AudioBuffer {
+  const length = Math.floor(ctx.sampleRate * 4);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
+  const rand = seeded(color.length * 977 + length);
 
   if (color === "white") {
-    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < length; i++) data[i] = rand() * 2 - 1;
   } else if (color === "pink") {
-    // Paul Kellet's economical pink noise approximation.
+    // Paul Kellet's economical pink-noise approximation.
     let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
     for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
+      const white = rand() * 2 - 1;
       b0 = 0.99886 * b0 + white * 0.0555179;
       b1 = 0.99332 * b1 + white * 0.0750759;
       b2 = 0.969 * b2 + white * 0.153852;
@@ -53,26 +67,30 @@ function noiseBuffer(ctx: AudioContext, color: NoiseColor): AudioBuffer {
   } else {
     let last = 0;
     for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
+      const white = rand() * 2 - 1;
       last = (last + 0.02 * white) / 1.02;
       data[i] = last * 3.5;
     }
   }
 
-  noiseCache.set(color, buffer);
   return buffer;
 }
 
-function startNoise(ctx: AudioContext, color: NoiseColor): AudioBufferSourceNode {
+function startNoise(
+  ctx: BaseAudioContext,
+  color: NoiseColor,
+  duration: number,
+): AudioBufferSourceNode {
   const source = ctx.createBufferSource();
   source.buffer = noiseBuffer(ctx, color);
   source.loop = true;
   source.start(0);
+  source.stop(duration);
   return source;
 }
 
 function filter(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   type: BiquadFilterType,
   frequency: number,
   q = 1,
@@ -84,14 +102,15 @@ function filter(
   return node;
 }
 
-/** Slow oscillator used for gusts, swells and shimmer. */
+/** Slow oscillator for gusts, swells and shimmer. */
 function lfo(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   rateHz: number,
   depth: number,
   target: AudioParam,
   centre: number,
-): OscillatorNode {
+  duration: number,
+): void {
   const osc = ctx.createOscillator();
   osc.frequency.value = rateHz;
   const gain = ctx.createGain();
@@ -100,40 +119,37 @@ function lfo(
   gain.connect(target);
   target.value = centre;
   osc.start(0);
-  return osc;
+  osc.stop(duration);
 }
 
 /**
- * Schedules sparse one-off events (a crackle, a chirp, a distant roll).
- * Intervals are randomised so the ear never locks onto a pattern.
+ * Lay sparse events across the whole render window.
+ *
+ * Gaps are randomised so the ear never locks onto a period, but the sequence
+ * is deterministic for a given seed.
  */
-function scheduler(
-  minMs: number,
-  maxMs: number,
-  fire: () => void,
-): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let stopped = false;
+function scheduleEvents(
+  seed: number,
+  duration: number,
+  minGap: number,
+  maxGap: number,
+  fire: (when: number) => void,
+): void {
+  const rand = seeded(seed);
+  let t = rand() * maxGap;
 
-  const loop = () => {
-    if (stopped) return;
-    fire();
-    timer = setTimeout(loop, minMs + Math.random() * (maxMs - minMs));
-  };
-
-  timer = setTimeout(loop, Math.random() * maxMs);
-
-  return () => {
-    stopped = true;
-    if (timer !== null) clearTimeout(timer);
-  };
+  while (t < duration) {
+    fire(t);
+    t += minGap + rand() * (maxGap - minGap);
+  }
 }
 
 /** A short filtered noise burst — the building block for most transients. */
 function burst(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   options: {
+    when: number;
     duration: number;
     frequency: number;
     q?: number;
@@ -142,7 +158,7 @@ function burst(
     color?: NoiseColor;
   },
 ): void {
-  const now = ctx.currentTime;
+  const { when } = options;
   const source = ctx.createBufferSource();
   source.buffer = noiseBuffer(ctx, options.color ?? "white");
   source.loop = true;
@@ -153,24 +169,26 @@ function burst(
     options.frequency,
     options.q ?? 8,
   );
+
   const envelope = ctx.createGain();
-  envelope.gain.setValueAtTime(0, now);
-  envelope.gain.linearRampToValueAtTime(options.gain, now + options.duration * 0.15);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, now + options.duration);
+  envelope.gain.setValueAtTime(0, when);
+  envelope.gain.linearRampToValueAtTime(options.gain, when + options.duration * 0.15);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, when + options.duration);
 
   source.connect(band);
   band.connect(envelope);
   envelope.connect(destination);
 
-  source.start(now, Math.random() * 3);
-  source.stop(now + options.duration + 0.05);
+  source.start(when, (when * 7.31) % 3);
+  source.stop(when + options.duration + 0.05);
 }
 
-/** A pitched tone with an envelope — hoots, chirps, whale calls. */
+/** A pitched tone with an envelope — chirps, hoots, whale calls. */
 function tone(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   options: {
+    when: number;
     startFreq: number;
     endFreq: number;
     duration: number;
@@ -178,328 +196,242 @@ function tone(
     type?: OscillatorType;
   },
 ): void {
-  const now = ctx.currentTime;
+  const { when } = options;
   const osc = ctx.createOscillator();
   osc.type = options.type ?? "sine";
-  osc.frequency.setValueAtTime(options.startFreq, now);
+  osc.frequency.setValueAtTime(options.startFreq, when);
   osc.frequency.exponentialRampToValueAtTime(
     Math.max(20, options.endFreq),
-    now + options.duration,
+    when + options.duration,
   );
 
   const envelope = ctx.createGain();
-  envelope.gain.setValueAtTime(0, now);
-  envelope.gain.linearRampToValueAtTime(options.gain, now + options.duration * 0.2);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, now + options.duration);
+  envelope.gain.setValueAtTime(0, when);
+  envelope.gain.linearRampToValueAtTime(options.gain, when + options.duration * 0.2);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, when + options.duration);
 
   osc.connect(envelope);
   envelope.connect(destination);
-  osc.start(now);
-  osc.stop(now + options.duration + 0.05);
+  osc.start(when);
+  osc.stop(when + options.duration + 0.05);
 }
 
-type Builder = (ctx: AudioContext, out: GainNode) => () => void;
+/** A steady noise bed: source → filter → gain → out. */
+function bed(
+  ctx: BaseAudioContext,
+  out: AudioNode,
+  duration: number,
+  options: {
+    color: NoiseColor;
+    type?: BiquadFilterType;
+    frequency: number;
+    q?: number;
+    gain: number;
+  },
+): { gain: GainNode; band: BiquadFilterNode } {
+  const source = startNoise(ctx, options.color, duration);
+  const band = filter(
+    ctx,
+    options.type ?? "lowpass",
+    options.frequency,
+    options.q ?? 1,
+  );
+  const gain = ctx.createGain();
+  gain.gain.value = options.gain;
 
-const BUILDERS: Record<string, Builder> = {
-  rain: (ctx, out) => {
-    /*
-     * Light rain — a patter, not a downpour.
-     *
-     * The previous bed was a broad, loud wash that read as heavy rain on a
-     * roof. Gentle rain is mostly *individual drops*: a quiet airy bed with
-     * discrete little impacts on top. So the wash is dialled well back and
-     * the character now comes from scheduled droplets.
-     */
-    const hiss = startNoise(ctx, "white");
-    const hissBand = filter(ctx, "highpass", 1400);
-    const hissTop = filter(ctx, "lowpass", 7000);
-    const hissGain = ctx.createGain();
-    hissGain.gain.value = 0.1;
+  source.connect(band);
+  band.connect(gain);
+  gain.connect(out);
 
-    const drift = lfo(ctx, 0.05, 0.03, hissGain.gain, 0.1);
+  return { gain, band };
+}
 
-    hiss.connect(hissBand);
-    hissBand.connect(hissTop);
-    hissTop.connect(hissGain);
-    hissGain.connect(out);
+/* ── beds ────────────────────────────────────────────────────────────────── */
 
-    // Droplets: short, bright, irregular. These carry the identity.
-    const cancel = scheduler(45, 190, () => {
+const BUILDERS: Record<string, BedBuilder> = {
+  /** Light rain: a quiet airy wash, with the character in discrete drops. */
+  rain: (ctx, out, d) => {
+    const { gain } = bed(ctx, out, d, {
+      color: "white",
+      type: "highpass",
+      frequency: 1400,
+      gain: 0.1,
+    });
+    lfo(ctx, 0.05, 0.03, gain.gain, 0.1, d);
+
+    scheduleEvents(11, d, 0.045, 0.19, (when) => {
+      const r = seeded(Math.floor(when * 1000))();
       burst(ctx, out, {
-        duration: 0.02 + Math.random() * 0.035,
-        frequency: 1800 + Math.random() * 3200,
+        when,
+        duration: 0.02 + r * 0.035,
+        frequency: 1800 + r * 3200,
         q: 4,
-        gain: 0.05 + Math.random() * 0.07,
+        gain: 0.05 + r * 0.07,
       });
     });
-
-    return () => {
-      hiss.stop();
-      drift.stop();
-      cancel();
-    };
   },
 
-  thunder: (ctx, out) => {
-    /*
-     * Distant thunder.
-     *
-     * Both the bed and the strikes used to live under ~180Hz, which the
-     * output high-pass now removes and a phone speaker never reproduced in
-     * the first place. They are moved up into the range that actually carries
-     * the impression of a roll — the weight of thunder on a small speaker
-     * comes from the low mids, not from sub-bass.
-     */
-    const rumble = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 620);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.12;
-    rumble.connect(low);
-    low.connect(gain);
-    gain.connect(out);
+  /**
+   * Distant thunder. Both bed and strikes sit in the low mids: on a phone the
+   * weight of thunder comes from there, not from sub-bass the speaker drops.
+   */
+  thunder: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "brown", frequency: 620, gain: 0.12 });
 
-    const cancel = scheduler(7000, 20000, () => {
+    scheduleEvents(23, d, 7, 20, (when) => {
+      const r = seeded(Math.floor(when * 97))();
       burst(ctx, out, {
-        duration: 2.4 + Math.random() * 2,
-        frequency: 260 + Math.random() * 220,
+        when,
+        duration: 2.4 + r * 2,
+        frequency: 260 + r * 220,
         q: 0.8,
         gain: 0.55,
         type: "lowpass",
         color: "brown",
       });
     });
-
-    return () => {
-      rumble.stop();
-      cancel();
-    };
   },
 
-  "thunder-storm": (ctx, out) => {
-    const stopRain = BUILDERS.rain(ctx, out);
-    const stopThunder = BUILDERS.thunder(ctx, out);
-    return () => {
-      stopRain();
-      stopThunder();
-    };
+  "thunder-storm": (ctx, out, d) => {
+    BUILDERS.rain(ctx, out, d);
+    BUILDERS.thunder(ctx, out, d);
   },
 
-  wind: (ctx, out) => {
-    // Gusts come from sweeping the filter, not from changing volume.
-    const noise = startNoise(ctx, "brown");
-    const band = filter(ctx, "lowpass", 600, 1.2);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.55;
-
-    const sweep = lfo(ctx, 0.07, 420, band.frequency, 700);
-    const swell = lfo(ctx, 0.11, 0.18, gain.gain, 0.5);
-
-    noise.connect(band);
-    band.connect(gain);
-    gain.connect(out);
-
-    return () => {
-      noise.stop();
-      sweep.stop();
-      swell.stop();
-    };
+  /** Gusts come from sweeping the filter, not from changing volume. */
+  wind: (ctx, out, d) => {
+    const { gain, band } = bed(ctx, out, d, {
+      color: "pink",
+      frequency: 700,
+      q: 1.2,
+      gain: 0.5,
+    });
+    lfo(ctx, 0.07, 420, band.frequency, 700, d);
+    lfo(ctx, 0.11, 0.18, gain.gain, 0.5, d);
   },
 
-  wave: (ctx, out) => {
-    const noise = startNoise(ctx, "brown");
-    const band = filter(ctx, "lowpass", 1100);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.4;
-
-    // Slow swell in and out, roughly one wave every ten seconds.
-    const swell = lfo(ctx, 0.1, 0.3, gain.gain, 0.4);
-    const shimmer = lfo(ctx, 0.1, 500, band.frequency, 1100);
-
-    noise.connect(band);
-    band.connect(gain);
-    gain.connect(out);
-
-    return () => {
-      noise.stop();
-      swell.stop();
-      shimmer.stop();
-    };
+  /** Open sea: slow swell rolling toward the listener. */
+  wave: (ctx, out, d) => {
+    const { gain, band } = bed(ctx, out, d, {
+      color: "pink",
+      frequency: 1100,
+      gain: 0.4,
+    });
+    lfo(ctx, 0.1, 0.3, gain.gain, 0.4, d);
+    lfo(ctx, 0.1, 500, band.frequency, 1100, d);
   },
 
-  river: (ctx, out) => {
-    const noise = startNoise(ctx, "white");
-    const high = filter(ctx, "highpass", 500);
+  river: (ctx, out, d) => {
+    const source = startNoise(ctx, "white", d);
+    const high = filter(ctx, "highpass", 600);
     const low = filter(ctx, "lowpass", 4200);
     const gain = ctx.createGain();
     gain.gain.value = 0.32;
-    const burble = lfo(ctx, 0.23, 0.05, gain.gain, 0.32);
 
-    noise.connect(high);
+    source.connect(high);
     high.connect(low);
     low.connect(gain);
     gain.connect(out);
 
-    return () => {
-      noise.stop();
-      burble.stop();
-    };
+    lfo(ctx, 0.23, 0.05, gain.gain, 0.32, d);
   },
 
-  fire: (ctx, out) => {
-    const bed = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 500);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.3;
-    bed.connect(low);
-    low.connect(gain);
-    gain.connect(out);
+  /** Firelight: a soft body under irregular, bright crackles. */
+  fire: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "pink", frequency: 700, gain: 0.18 });
 
-    // Crackles: short, bright, irregular.
-    const cancel = scheduler(90, 700, () => {
+    scheduleEvents(31, d, 0.09, 0.7, (when) => {
+      const r = seeded(Math.floor(when * 613))();
       burst(ctx, out, {
-        duration: 0.03 + Math.random() * 0.07,
-        frequency: 1200 + Math.random() * 2600,
+        when,
+        duration: 0.03 + r * 0.07,
+        frequency: 1200 + r * 2600,
         q: 3,
-        gain: 0.05 + Math.random() * 0.14,
+        gain: 0.05 + r * 0.14,
       });
     });
-
-    return () => {
-      bed.stop();
-      cancel();
-    };
   },
 
-  crickets: (ctx, out) => {
-    /*
-     * Chirps from an oscillator, not filtered noise.
-     *
-     * The old version pushed noise through a Q-26 bandpass. That filter is so
-     * narrow it passes almost none of a broadband source, so the chirps were
-     * effectively silent however high the gain went. A real cricket
-     * stridulates close to a pure tone, so an oscillator is both louder and
-     * more accurate.
-     */
-    const bed = startNoise(ctx, "pink");
-    const low = filter(ctx, "lowpass", 900);
-    const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.05;
-    bed.connect(low);
-    low.connect(bedGain);
-    bedGain.connect(out);
+  /** Dawn chorus over a faint morning hiss. */
+  birds: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "pink", frequency: 1200, gain: 0.05 });
 
-    const cancel = scheduler(600, 1900, () => {
-      const base = 4200 + Math.random() * 800;
-      const pulses = 3 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < pulses; i++) {
-        setTimeout(() => {
-          tone(ctx, out, {
-            startFreq: base,
-            endFreq: base * 0.97,
-            duration: 0.05,
-            gain: 0.14,
-          });
-        }, i * 62);
-      }
-    });
+    scheduleEvents(7, d, 0.9, 3.5, (when) => {
+      const rand = seeded(Math.floor(when * 331));
+      const notes = 2 + Math.floor(rand() * 3);
+      const base = 2200 + rand() * 1800;
 
-    return () => {
-      bed.stop();
-      cancel();
-    };
-  },
-
-  birds: (ctx, out) => {
-    const bed = startNoise(ctx, "pink");
-    const low = filter(ctx, "lowpass", 900);
-    const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.05;
-    bed.connect(low);
-    low.connect(bedGain);
-    bedGain.connect(out);
-
-    const cancel = scheduler(900, 3500, () => {
-      const notes = 2 + Math.floor(Math.random() * 3);
-      const base = 2200 + Math.random() * 1800;
       for (let i = 0; i < notes; i++) {
-        setTimeout(() => {
-          const up = Math.random() > 0.5;
-          tone(ctx, out, {
-            startFreq: up ? base : base * 1.5,
-            endFreq: up ? base * 1.5 : base * 0.8,
-            duration: 0.09 + Math.random() * 0.08,
-            gain: 0.06,
-          });
-        }, i * (70 + Math.random() * 90));
+        const up = rand() > 0.5;
+        tone(ctx, out, {
+          when: when + i * (0.07 + rand() * 0.09),
+          startFreq: up ? base : base * 1.5,
+          endFreq: up ? base * 1.5 : base * 0.8,
+          duration: 0.09 + rand() * 0.08,
+          gain: 0.08,
+        });
       }
     });
-
-    return () => {
-      bed.stop();
-      cancel();
-    };
   },
 
-  owl: (ctx, out) => {
-    /*
-     * Hoots, with only a whisper of night air behind them.
-     *
-     * The bed was brown noise under a 260Hz lowpass at four times this gain —
-     * pure rumble, and loud enough to bury the hoots it was meant to sit
-     * behind. The bed is now quiet and airy, and the calls are the loudest
-     * thing here, as they should be.
-     */
-    const bed = startNoise(ctx, "pink");
-    const low = filter(ctx, "lowpass", 1600);
-    const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.04;
-    bed.connect(low);
-    low.connect(bedGain);
-    bedGain.connect(out);
+  /**
+   * Crickets, as oscillators. Filtered noise through the narrow band a chirp
+   * needs passes almost no energy, which is why the old version was silent.
+   */
+  crickets: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "pink", frequency: 900, gain: 0.05 });
 
-    // A tawny owl's two-part call, an octave up from the old version so a
-    // phone speaker can actually render it.
-    const cancel = scheduler(4500, 11000, () => {
-      const base = 620 + Math.random() * 120;
+    scheduleEvents(17, d, 0.6, 1.9, (when) => {
+      const rand = seeded(Math.floor(when * 419));
+      const base = 4200 + rand() * 800;
+      const pulses = 3 + Math.floor(rand() * 3);
+
+      for (let i = 0; i < pulses; i++) {
+        tone(ctx, out, {
+          when: when + i * 0.062,
+          startFreq: base,
+          endFreq: base * 0.97,
+          duration: 0.05,
+          gain: 0.14,
+        });
+      }
+    });
+  },
+
+  /** Hoots, with only a whisper of night air behind them. */
+  owl: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "pink", frequency: 1600, gain: 0.04 });
+
+    scheduleEvents(29, d, 4.5, 11, (when) => {
+      const base = 620 + seeded(Math.floor(when * 211))() * 120;
       tone(ctx, out, {
+        when,
         startFreq: base,
         endFreq: base * 0.92,
         duration: 0.4,
         gain: 0.24,
       });
-      setTimeout(
-        () =>
-          tone(ctx, out, {
-            startFreq: base * 0.95,
-            endFreq: base * 0.84,
-            duration: 0.55,
-            gain: 0.2,
-          }),
-        600,
-      );
+      tone(ctx, out, {
+        when: when + 0.6,
+        startFreq: base * 0.95,
+        endFreq: base * 0.84,
+        duration: 0.55,
+        gain: 0.2,
+      });
     });
-
-    return () => {
-      bed.stop();
-      cancel();
-    };
   },
 
-  cat: (ctx, out) => {
-    /*
-     * Purr plus soft meows.
-     *
-     * The first attempt used a sawtooth, which on a small speaker reads as an
-     * electronic buzz rather than an animal. A triangle carries far less
-     * upper-harmonic energy, and a gentle bandpass around the vowel region
-     * gives the call its shape without the rasp.
-     */
-    const noise = startNoise(ctx, "pink");
-    const body = filter(ctx, "lowpass", 1100);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.16;
+  /**
+   * Purr plus soft meows. A triangle through a formant-ish band gives the call
+   * its shape; a sawtooth read as an electronic buzz on a small speaker.
+   */
+  cat: (ctx, out, d) => {
+    const { gain } = bed(ctx, out, d, {
+      color: "pink",
+      frequency: 1100,
+      gain: 0.16,
+    });
 
-    // ~26Hz amplitude pulses are what makes a purr read as a purr.
+    // ~26Hz amplitude pulses are what make a purr read as a purr.
     const pulse = ctx.createOscillator();
     pulse.type = "sine";
     pulse.frequency.value = 26;
@@ -508,185 +440,118 @@ const BUILDERS: Record<string, Builder> = {
     pulse.connect(pulseDepth);
     pulseDepth.connect(gain.gain);
     pulse.start(0);
+    pulse.stop(d);
 
-    noise.connect(body);
-    body.connect(gain);
-    gain.connect(out);
-
-    // Shape the meow through a formant-ish band so it sounds voiced.
     const voice = filter(ctx, "bandpass", 900, 1.6);
     voice.connect(out);
 
-    const cancel = scheduler(7000, 18000, () => {
-      const base = 440 + Math.random() * 160;
+    scheduleEvents(41, d, 7, 18, (when) => {
+      const base = 440 + seeded(Math.floor(when * 157))() * 160;
       tone(ctx, voice, {
+        when,
         startFreq: base * 0.85,
         endFreq: base,
         duration: 0.26,
         gain: 0.22,
         type: "triangle",
       });
-      setTimeout(
-        () =>
-          tone(ctx, voice, {
-            startFreq: base,
-            endFreq: base * 0.7,
-            duration: 0.5,
-            gain: 0.2,
-            type: "triangle",
-          }),
-        240,
-      );
+      tone(ctx, voice, {
+        when: when + 0.24,
+        startFreq: base,
+        endFreq: base * 0.7,
+        duration: 0.5,
+        gain: 0.2,
+        type: "triangle",
+      });
     });
-
-    return () => {
-      noise.stop();
-      pulse.stop();
-      cancel();
-      voice.disconnect();
-    };
   },
 
-  whale: (ctx, out) => {
-    /*
-     * Whale song over deep water.
-     *
-     * The calls previously started near 180Hz and glided down to ~70Hz, which
-     * a phone speaker cannot reproduce — the sound existed but could not be
-     * heard. They now sit an octave higher, where the instrument is audible,
-     * and the calls are frequent and loud enough to actually register.
-     */
-    const bed = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 420);
-    const bedGain = ctx.createGain();
-    bedGain.gain.value = 0.2;
-    bed.connect(low);
-    low.connect(bedGain);
-    bedGain.connect(out);
+  /** Whale song. An octave above the original, which fell below audibility. */
+  whale: (ctx, out, d) => {
+    bed(ctx, out, d, { color: "brown", frequency: 520, gain: 0.2 });
 
-    const cancel = scheduler(4000, 9000, () => {
-      const base = 420 + Math.random() * 320;
-      // A long descending moan, then a shorter answering rise.
+    scheduleEvents(13, d, 4, 9, (when) => {
+      const rand = seeded(Math.floor(when * 271));
+      const base = 420 + rand() * 320;
+
       tone(ctx, out, {
+        when,
         startFreq: base,
-        endFreq: base * (0.55 + Math.random() * 0.2),
-        duration: 1.8 + Math.random() * 1.6,
+        endFreq: base * (0.55 + rand() * 0.2),
+        duration: 1.8 + rand() * 1.6,
         gain: 0.2,
       });
-      setTimeout(
-        () =>
-          tone(ctx, out, {
-            startFreq: base * 0.62,
-            endFreq: base * 0.9,
-            duration: 1.1,
-            gain: 0.14,
-          }),
-        2200,
-      );
+      tone(ctx, out, {
+        when: when + 2.2,
+        startFreq: base * 0.62,
+        endFreq: base * 0.9,
+        duration: 1.1,
+        gain: 0.14,
+      });
     });
-
-    return () => {
-      bed.stop();
-      cancel();
-    };
   },
 
-  train: (ctx, out) => {
-    const rumble = startNoise(ctx, "brown");
-    const low = filter(ctx, "lowpass", 320);
-    const gain = ctx.createGain();
-    gain.gain.value = 0.42;
-    const sway = lfo(ctx, 0.09, 0.07, gain.gain, 0.42);
-
-    rumble.connect(low);
-    low.connect(gain);
-    gain.connect(out);
-
-    // Rail joints: a steady two-beat clack.
-    const cancel = scheduler(1400, 1700, () => {
-      burst(ctx, out, { duration: 0.06, frequency: 900, q: 2, gain: 0.09 });
-      setTimeout(
-        () => burst(ctx, out, { duration: 0.06, frequency: 780, q: 2, gain: 0.07 }),
-        190,
-      );
+  /** Rolling stock: a steady body under the two-beat clack of rail joints. */
+  train: (ctx, out, d) => {
+    const { gain } = bed(ctx, out, d, {
+      color: "brown",
+      frequency: 520,
+      gain: 0.42,
     });
+    lfo(ctx, 0.09, 0.07, gain.gain, 0.42, d);
 
-    return () => {
-      rumble.stop();
-      sway.stop();
-      cancel();
-    };
+    scheduleEvents(37, d, 1.4, 1.7, (when) => {
+      burst(ctx, out, { when, duration: 0.06, frequency: 900, q: 2, gain: 0.09 });
+      burst(ctx, out, {
+        when: when + 0.19,
+        duration: 0.06,
+        frequency: 780,
+        q: 2,
+        gain: 0.07,
+      });
+    });
   },
 
-  "night-forest": (ctx, out) => {
-    const stopCrickets = BUILDERS.crickets(ctx, out);
-    const stopWind = BUILDERS.wind(ctx, out);
-    const stopOwl = BUILDERS.owl(ctx, out);
-    return () => {
-      stopCrickets();
-      stopWind();
-      stopOwl();
-    };
+  "night-forest": (ctx, out, d) => {
+    BUILDERS.crickets(ctx, out, d);
+    BUILDERS.owl(ctx, out, d);
+    bed(ctx, out, d, { color: "pink", frequency: 900, gain: 0.05 });
   },
 };
+
+/* ── public API ──────────────────────────────────────────────────────────── */
 
 export function canSynthesise(ambientId: string): boolean {
   return ambientId in BUILDERS;
 }
 
 /**
- * Build and start an ambient bed. The returned handle's `output` is silent
- * until the caller ramps it — the mixer owns the fade.
+ * Returns a builder that lays the named bed into `out`, wrapped in the
+ * high-pass every bed shares.
+ *
+ * The guard is not cosmetic: brown-noise beds stacked across the catalogue
+ * produced a constant low rumble that muddied everything and buried the
+ * character sounds — the owl's hoots were lost under their own bed. A phone
+ * cannot render that energy anyway.
  */
-export function createAmbientSource(
-  ctx: AudioContext,
-  ambientId: string,
-): AmbientSourceHandle | null {
+export function buildBed(ambientId: string): BedBuilder | null {
   const build = BUILDERS[ambientId];
   if (build === undefined) return null;
 
-  const output = ctx.createGain();
-  output.gain.value = 0;
+  return (ctx, out, duration) => {
+    const first = ctx.createBiquadFilter();
+    first.type = "highpass";
+    first.frequency.value = 150;
+    first.Q.value = 0.7;
 
-  /*
-   * Every bed passes through a high-pass before it leaves.
-   *
-   * Most generators use a noise bed to suggest air or water, and brown noise
-   * piles its energy into the bottom octaves. Stacked across the catalogue
-   * that read as a constant low rumble that muddied everything and masked the
-   * character sounds — the owl's hoots were audibly buried under their own
-   * bed.
-   *
-   * A phone speaker cannot reproduce much below ~150Hz anyway; it only turns
-   * that energy into cone excursion and distortion. Removing it costs nothing
-   * audible and clears the mud. Two poles, so the slope is gentle enough not
-   * to thin out thunder.
-   */
-  const rumbleGuard = ctx.createBiquadFilter();
-  rumbleGuard.type = "highpass";
-  rumbleGuard.frequency.value = 150;
-  rumbleGuard.Q.value = 0.7;
+    const second = ctx.createBiquadFilter();
+    second.type = "highpass";
+    second.frequency.value = 150;
+    second.Q.value = 0.7;
 
-  const stage2 = ctx.createBiquadFilter();
-  stage2.type = "highpass";
-  stage2.frequency.value = 150;
-  stage2.Q.value = 0.7;
+    first.connect(second);
+    second.connect(out);
 
-  const inner = ctx.createGain();
-  const teardown = build(ctx, inner);
-
-  inner.connect(rumbleGuard);
-  rumbleGuard.connect(stage2);
-  stage2.connect(output);
-
-  return {
-    output,
-    stop() {
-      teardown();
-      inner.disconnect();
-      rumbleGuard.disconnect();
-      stage2.disconnect();
-      output.disconnect();
-    },
+    build(ctx, first, duration);
   };
 }

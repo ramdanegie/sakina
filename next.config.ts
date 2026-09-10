@@ -14,6 +14,16 @@ import type { NextConfig } from "next";
 const target = process.env.BUILD_TARGET ?? "static";
 const isStatic = target === "static";
 
+/**
+ * Identifies this build to the service worker.
+ *
+ * Cache names are derived from it, so every deploy gets a fresh set and the
+ * previous one is discarded on activate. Without this the worker kept serving
+ * the JS and CSS it cached on the user's first visit — a PWA that had been
+ * installed once would never see an update.
+ */
+const buildId = process.env.BUILD_ID ?? String(Date.now());
+
 const nextConfig: NextConfig = {
   output: isStatic ? "export" : "standalone",
 
@@ -22,6 +32,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
+
+  env: { NEXT_PUBLIC_BUILD_ID: buildId },
 
   // Subdirectory deploys (e.g. example.com/quran) need the asset prefix set.
   // Leave BASE_PATH unset when serving from a domain root.

@@ -1,5 +1,4 @@
 import type { AudioPlayerPort, AudioTrackSource } from "@/application/ports";
-import { cancelMasterFade, fadeMasterTo, unlockAudioContext } from "./audio-context";
 
 /**
  * The recitation channel.
@@ -46,19 +45,13 @@ export class HtmlAudioPlayerAdapter implements AudioPlayerPort {
    * Order matters here, and getting it wrong is subtle.
    *
    * `element.play()` has to be *invoked* synchronously inside the user
-   * gesture that triggered it. Awaiting anything first — including the
-   * AudioContext resume — defers the call to a later tick, by which point
-   * Chrome and Safari consider the gesture spent and reject playback. The
-   * symptom is a track that loads, shows its metadata, and silently never
-   * starts.
-   *
-   * So the element is started first, and the AudioContext (which only the
-   * ambient channel needs) is unlocked immediately afterwards.
+   * gesture that triggered it. Awaiting anything first defers the call to a
+   * later tick, by which point Chrome and Safari consider the gesture spent
+   * and reject playback. The symptom is a track that loads, shows its
+   * metadata, and silently never starts.
    */
   async play(): Promise<void> {
     const started = this.element.play();
-
-    void unlockAudioContext();
 
     try {
       await started;
@@ -103,7 +96,6 @@ export class HtmlAudioPlayerAdapter implements AudioPlayerPort {
   /** Linear ramp to silence, stepped at 20Hz. */
   fadeOut(seconds: number): void {
     this.cancelFade();
-    fadeMasterTo(0, seconds);
 
     const stepMs = 50;
     const steps = Math.max(1, Math.round((seconds * 1000) / stepMs));
@@ -123,7 +115,6 @@ export class HtmlAudioPlayerAdapter implements AudioPlayerPort {
       clearInterval(this.fadeTimer);
       this.fadeTimer = null;
     }
-    cancelMasterFade();
     this.element.volume = this.baseVolume;
   }
 

@@ -224,7 +224,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       // Sleep timer: fade out over the final seconds, then stop.
       const timer = session.sleepTimer;
       if (timer.isActive && timer.isFading(new Date())) {
-        audio.player.fadeOut(timer.remainingSeconds(new Date()));
+        const remaining = timer.remainingSeconds(new Date());
+        audio.player.fadeOut(remaining);
+        // Both channels dim together, or the bed stays at full level right up
+        // to the moment playback stops.
+        audio.ambientMixer.fadeOut(remaining);
       }
       if (session.tickSleepTimer(new Date())) {
         audio.player.pause();
@@ -452,6 +456,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (minutes === null) {
         session.clearSleepTimer();
         getAudioContainer()?.player.cancelFade();
+        getAudioContainer()?.ambientMixer.cancelFade();
         set(project());
         return;
       }
@@ -460,6 +465,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (!timer.ok) return;
       session.setSleepTimer(timer.value);
       getAudioContainer()?.player.cancelFade();
+      getAudioContainer()?.ambientMixer.cancelFade();
       set(project());
     },
 

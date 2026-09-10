@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { BottomNav } from "./bottom-nav";
+import { PullToRefresh } from "./pull-to-refresh";
 import { MiniPlayer } from "./player/mini-player";
 import { FullPlayer } from "./player/full-player";
 import { usePlayerStore } from "@/presentation/stores/player.store";
@@ -41,6 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <BottomNav />
         </div>
       </div>
+
+      <PullToRefresh />
 
       <FullPlayer />
 
